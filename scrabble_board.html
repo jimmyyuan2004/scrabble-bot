@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Scrabble Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --frame: #3B2A1E;
+    --frame-dark: #2A1D14;
+    --surface: #EFE3C8;
+    --grid-line: #D8C9A3;
+    --tw: #B8503A;
+    --dw: #D9A79A;
+    --tl: #2B6E77;
+    --dl: #9FCFC9;
+    --star: #C9A227;
+    --tile: #F7EEDA;
+    --tile-shadow: #C9B489;
+    --ink: #2A1F14;
+    --ui-text: #EFE3C8;
+    --ui-muted: #B9A97F;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #1C140D;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 32px 16px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1 {
+    font-family: 'Bitter', serif;
+    font-weight: 700;
+    color: var(--ui-text);
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+
+  .board-frame {
+    background: linear-gradient(160deg, var(--frame), var(--frame-dark));
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(15, minmax(0, 32px));
+    grid-template-rows: repeat(15, minmax(0, 32px));
+    gap: 2px;
+    background: var(--grid-line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .cell {
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-size: 9px;
+    color: rgba(42, 31, 20, 0.55);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .cell.tw { background: var(--tw); color: rgba(255,255,255,0.85); }
+  .cell.dw { background: var(--dw); color: rgba(60,30,20,0.6); }
+  .cell.tl { background: var(--tl); color: rgba(255,255,255,0.8); }
+  .cell.dl { background: var(--dl); color: rgba(20,50,50,0.55); }
+  .cell.center {
+    background: var(--dw);
+  }
+  .cell.center::after {
+    content: "★";
+    color: var(--star);
+    font-size: 15px;
+  }
+  .cell.tw::before, .cell.dw::before, .cell.tl::before, .cell.dl::before {
+    content: attr(data-label);
+  }
+  .cell.center::before { content: none; }
+
+  .tile {
+    position: absolute;
+    inset: 2px;
+    background: var(--tile);
+    border-radius: 3px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 -2px 3px var(--tile-shadow) inset,
+      0 2px 3px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bitter', serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+    z-index: 2;
+  }
+
+  .tile .points {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 7px;
+    font-weight: 600;
+    color: rgba(42,31,20,0.6);
+  }
+
+  .tile .bonus-badge {
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 6px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.9);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    z-index: 3;
+  }
+
+  .bonus-badge.tw { background: var(--tw); }
+  .bonus-badge.dw { background: var(--dw); color: rgba(60,30,20,0.75); }
+  .bonus-badge.tl { background: var(--tl); }
+  .bonus-badge.dl { background: var(--dl); color: rgba(20,50,50,0.75); }
+  .bonus-badge.center { background: var(--star); color: rgba(60,30,20,0.75); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    max-width: 480px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--ui-muted);
+  }
+
+  .swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  .swatch.tw { background: var(--tw); }
+  .swatch.dw { background: var(--dw); }
+  .swatch.tl { background: var(--tl); }
+  .swatch.dl { background: var(--dl); }
+
+  .cell.empty-target {
+    cursor: pointer;
+  }
+  .cell.empty-target:hover {
+    outline: 2px solid rgba(201, 162, 39, 0.7);
+    outline-offset: -2px;
+  }
+
+  .tile.placed {
+    cursor: pointer;
+  }
+
+  .tile.confirmed {
+    cursor: default;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 -2px 3px var(--tile-shadow) inset,
+      0 2px 3px rgba(0,0,0,0.3),
+      0 0 0 2px var(--star);
+  }
+
+  .rack-panel {
+    background: linear-gradient(160deg, var(--frame), var(--frame-dark));
+    padding: 14px 18px;
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rack-label {
+    color: var(--ui-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .rack-tiles {
+    display: flex;
+    gap: 6px;
+    min-height: 40px;
+  }
+
+  .rack-tile {
+    width: 34px;
+    height: 34px;
+    background: var(--tile);
+    border-radius: 4px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 -2px 3px var(--tile-shadow) inset,
+      0 2px 4px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-family: 'Bitter', serif;
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 0.08s ease;
+  }
+
+  .rack-tile:hover {
+    transform: translateY(-3px);
+  }
+
+  .rack-tile.selected {
+    outline: 2px solid var(--star);
+    transform: translateY(-4px);
+  }
+
+  .rack-tile .points {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 7px;
+    font-weight: 600;
+    color: rgba(42,31,20,0.6);
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .controls input {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: none;
+    width: 140px;
+    background: #fff8ea;
+    color: var(--ink);
+  }
+
+  .controls button {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: none;
+    background: var(--star);
+    color: #2A1D14;
+    cursor: pointer;
+  }
+
+  .controls button.secondary {
+    background: transparent;
+    color: var(--ui-muted);
+    border: 1px solid var(--ui-muted);
+  }
+
+  .hint {
+    color: var(--ui-muted);
+    font-size: 11px;
+    text-align: center;
+    max-width: 340px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Scrabble Board — Live View</h1>
+
+  <div class="board-frame">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch tw"></span>Triple Word</div>
+    <div class="legend-item"><span class="swatch dw"></span>Double Word</div>
+    <div class="legend-item"><span class="swatch tl"></span>Triple Letter</div>
+    <div class="legend-item"><span class="swatch dl"></span>Double Letter</div>
+  </div>
+
+  <div class="rack-panel">
+    <div class="rack-label">Your Rack</div>
+    <div class="rack-tiles" id="rack"></div>
+    <div class="controls">
+      <input type="text" id="rackInput" placeholder="e.g. SCRABLE" maxlength="7">
+      <button id="setRackBtn">Set Rack</button>
+      <button class="secondary" id="clearBoardBtn">Clear Board</button>
+    </div>
+    <div class="hint">Gold-outlined tiles are confirmed plays from Discord (read-only, auto-refreshing). Click a rack tile then an empty square to try out a placement locally — this never gets sent anywhere.</div>
+  </div>
+
+<script>
+  const SIZE = 15;
+
+  const LETTER_POINTS = {
+    A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,
+    P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10,"?":0
+  };
+
+  // Standard official Scrabble premium square layout (0-indexed rows/cols).
+  function buildPremiumMap() {
+    const tw = [
+      [0,0],[0,7],[0,14],
+      [7,0],[7,14],
+      [14,0],[14,7],[14,14]
+    ];
+    const dw = [
+      [1,1],[2,2],[3,3],[4,4],
+      [1,13],[2,12],[3,11],[4,10],
+      [13,1],[12,2],[11,3],[10,4],
+      [13,13],[12,12],[11,11],[10,10]
+    ];
+    const tl = [
+      [1,5],[1,9],
+      [5,1],[5,5],[5,9],[5,13],
+      [9,1],[9,5],[9,9],[9,13],
+      [13,5],[13,9]
+    ];
+    const dl = [
+      [0,3],[0,11],
+      [2,6],[2,8],
+      [3,0],[3,7],[3,14],
+      [6,2],[6,6],[6,8],[6,12],
+      [7,3],[7,11],
+      [8,2],[8,6],[8,8],[8,12],
+      [11,0],[11,7],[11,14],
+      [12,6],[12,8],
+      [14,3],[14,11]
+    ];
+
+    const map = {};
+    const assign = (coords, type) => {
+      coords.forEach(([r, c]) => { map[`${r},${c}`] = type; });
+    };
+
+    assign(tw, 'tw');
+    assign(dw, 'dw');
+    assign(tl, 'tl');
+    assign(dl, 'dl');
+    map[`7,7`] = 'center';
+
+    return map;
+  }
+
+  const LABELS = { tw: 'TW', dw: 'DW', tl: 'TL', dl: 'DL' };
+  const premiumMap = buildPremiumMap();
+
+  // API base — change this if Flask is running somewhere other than
+  // your own machine on the default port.
+  const API_BASE = "https://scrabble-bot.onrender.com";
+  const POLL_INTERVAL_MS = 4000;
+
+  // --- State, split into two layers ---
+  // confirmedBoard: "r,c" -> letter. Comes from the Flask API — this is
+  // the REAL, shared game state written by Discord plays/challenges.
+  // Read-only here: clicking these tiles does nothing.
+  let confirmedBoard = {};
+
+  // localBoard: "r,c" -> letter. Purely a local sandbox for trying out
+  // placements with the rack below — never sent anywhere, never
+  // overwritten by fetches. Cleared with "Clear Board".
+  let localBoard = {};
+
+  // rack: array of letters currently in hand (local sandbox only).
+  let rack = ["S", "C", "R", "B", "L", "N", "?"];
+
+  // Index into `rack` of the currently-selected tile, or null.
+  let selectedRackIndex = null;
+
+  const boardEl = document.getElementById('board');
+  const rackEl = document.getElementById('rack');
+  const rackInput = document.getElementById('rackInput');
+  const setRackBtn = document.getElementById('setRackBtn');
+  const clearBoardBtn = document.getElementById('clearBoardBtn');
+
+  async function fetchConfirmedBoard() {
+    try {
+      const res = await fetch(`${API_BASE}/board`);
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      const data = await res.json();
+      confirmedBoard = data.board || {};
+      renderBoard();
+    } catch (err) {
+      // Quietly leave the last-known board in place if the API is
+      // unreachable (e.g. Flask isn't running right now).
+      console.warn("Could not fetch board from API:", err.message);
+    }
+  }
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const key = `${r},${c}`;
+        const cell = document.createElement('div');
+        const type = premiumMap[key];
+
+        cell.className = 'cell' + (type ? ` ${type}` : '');
+        if (type && type !== 'center') {
+          cell.dataset.label = LABELS[type];
+        }
+
+        const confirmedLetter = confirmedBoard[key];
+        const localLetter = localBoard[key];
+
+        function addBonusBadge(tileEl) {
+          if (!type) return;
+          const badge = document.createElement('span');
+          badge.className = `bonus-badge ${type}`;
+          badge.textContent = type === 'center' ? '★' : LABELS[type];
+          badge.title = {
+            tw: 'Triple Word Score',
+            dw: 'Double Word Score',
+            tl: 'Triple Letter Score',
+            dl: 'Double Letter Score',
+            center: 'Center (Double Word Score)',
+          }[type];
+          tileEl.appendChild(badge);
+        }
+
+        if (confirmedLetter) {
+          // Server-confirmed tile: read-only, slightly different styling
+          // so it's visually clear this one didn't come from your clicks.
+          const tile = document.createElement('div');
+          tile.className = 'tile confirmed';
+          tile.textContent = confirmedLetter;
+          const points = document.createElement('span');
+          points.className = 'points';
+          points.textContent = LETTER_POINTS[confirmedLetter] ?? '';
+          tile.appendChild(points);
+          addBonusBadge(tile);
+          cell.appendChild(tile);
+        } else if (localLetter) {
+          const tile = document.createElement('div');
+          tile.className = 'tile placed';
+          tile.textContent = localLetter;
+          const points = document.createElement('span');
+          points.className = 'points';
+          points.textContent = LETTER_POINTS[localLetter] ?? '';
+          tile.appendChild(points);
+          addBonusBadge(tile);
+          tile.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pickUpTile(key);
+          });
+          cell.appendChild(tile);
+        } else {
+          cell.classList.add('empty-target');
+          cell.addEventListener('click', () => placeTileAt(key));
+        }
+
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function renderRack() {
+    rackEl.innerHTML = '';
+    rack.forEach((letter, i) => {
+      const tile = document.createElement('div');
+      tile.className = 'rack-tile' + (i === selectedRackIndex ? ' selected' : '');
+      tile.textContent = letter === '?' ? '?' : letter;
+      const points = document.createElement('span');
+      points.className = 'points';
+      points.textContent = LETTER_POINTS[letter] ?? '';
+      tile.appendChild(points);
+      tile.addEventListener('click', () => {
+        selectedRackIndex = (selectedRackIndex === i) ? null : i;
+        renderRack();
+      });
+      rackEl.appendChild(tile);
+    });
+  }
+
+  function placeTileAt(key) {
+    if (selectedRackIndex === null) return;
+    if (confirmedBoard[key] || localBoard[key]) return; // occupied, ignore
+
+    const letter = rack[selectedRackIndex];
+    localBoard[key] = letter;
+    rack.splice(selectedRackIndex, 1);
+    selectedRackIndex = null;
+
+    renderBoard();
+    renderRack();
+  }
+
+  function pickUpTile(key) {
+    const letter = localBoard[key];
+    if (!letter) return; // confirmed tiles can't be picked up
+    delete localBoard[key];
+    rack.push(letter);
+    selectedRackIndex = null;
+
+    renderBoard();
+    renderRack();
+  }
+
+  setRackBtn.addEventListener('click', () => {
+    const raw = rackInput.value.toUpperCase().replace(/[^A-Z?]/g, '');
+    if (!raw) return;
+    rack = raw.split('');
+    selectedRackIndex = null;
+    rackInput.value = '';
+    renderRack();
+  });
+
+  clearBoardBtn.addEventListener('click', () => {
+    localBoard = {};
+    selectedRackIndex = null;
+    renderBoard();
+  });
+
+  // Initial render, then fetch the real board and start polling.
+  renderBoard();
+  renderRack();
+  fetchConfirmedBoard();
+  setInterval(fetchConfirmedBoard, POLL_INTERVAL_MS);
+</script>
+
+</body>
+</html>
