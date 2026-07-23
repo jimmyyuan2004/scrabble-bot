@@ -13,6 +13,8 @@ Persistence is handled by storage.py.
 
 import os
 import discord
+import threading
+from app import app as flask_app
 from discord import app_commands
 from dotenv import load_dotenv
 from collections import Counter
@@ -322,5 +324,13 @@ async def end(interaction: discord.Interaction):
         )
     except ScrabbleError as e:
         await interaction.response.send_message(f"❌ {e}", ephemeral=True)
+
+def run_flask():
+    port = int(os.getenv("PORT", 5000))
+    flask_app.run(host="0.0.0.0", port=port)
+
+# Run Flask in a background thread so the Discord bot's event loop
+# (which needs the main thread) isn't blocked by it.
+threading.Thread(target=run_flask, daemon=True).start()
 
 client.run(TOKEN)
