@@ -21,6 +21,12 @@ CORS(app)
 def get_game() -> Game:
     return load_game() if game_exists() else Game()
 
+@app.route("/players", methods=["GET"])
+def players():
+    game = get_game()
+    return jsonify({
+        "players": [{"player_id": pid, "name": p.name} for pid, p in game.players.items()]
+    })
 
 @app.route("/status", methods=["GET"])
 def status():

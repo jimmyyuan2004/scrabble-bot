@@ -14,6 +14,8 @@ Persistence is handled by storage.py.
 import os
 import discord
 import threading
+import aiohttp
+import asyncio
 from app import app as flask_app
 from discord import app_commands
 from dotenv import load_dotenv
@@ -34,6 +36,27 @@ tree = app_commands.CommandTree(client)
 # current plan — "multiple games per server" is listed as a future feature).
 game = load_game() if game_exists() else Game()
 
+RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")  # auto-set by Render for web services
+_keepalive_task = None
+
+async def keepalive_loop():
+    if not RENDER_URL:
+        return  # not running on Render (e.g. local testing) — skip
+    async with aiohttp.ClientSession() as session:
+        for _ in range(6):  # 6 x 10 min = 1 hour of coverage
+            await asyncio.sleep(600)
+            try:
+                async with session.get(f"{RENDER_URL}/status", timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    print(f"Keep-alive ping: {resp.status}")
+            except Exception as e:
+                print(f"Keep-alive ping failed: {e}")
+
+def restart_keepalive():
+    """Call this after any play — resets the 1-hour keep-alive window."""
+    global _keepalive_task
+    if _keepalive_task and not _keepalive_task.done():
+        _keepalive_task.cancel()
+    _keepalive_task = asyncio.create_task(keepalive_loop())
 
 @client.event
 async def on_ready():
@@ -132,6 +155,7 @@ async def play(
 
         game.play_tiles(acting_id, letters, row, col, direction.value)
         save_game(game)
+        restart_keepalive()
 
         # Anyone whose pending play just got auto-confirmed needs their
         # replacement tiles drawn and a DM.
@@ -294,6 +318,7 @@ async def challenge(
         if result.value == "success":
             game.challenge_success(player_id)
             save_game(game)
+            restart_keepalive()
             await send_rack_dm(player_id)
             await interaction.response.send_message(
                 f"❌ Challenge succeeded — {player.display_name}'s tiles were returned.\n\n \"Thats not a word! 👎\" - Justin"
@@ -302,6 +327,7 @@ async def challenge(
             game.challenge_fail(player_id)
             game.draw_replacements(player_id)
             save_game(game)
+            restart_keepalive()
             await send_rack_dm(player_id)
             bag_note = "\n\n🎒 The bag is now empty!" if len(game.bag) == 0 else ""
             await interaction.response.send_message(

@@ -317,6 +317,11 @@
     <div class="legend-item"><span class="swatch dl"></span>Double Letter</div>
   </div>
 
+  <div class="rack-panel" id="identity-panel">
+    <div class="rack-label">Who are you?</div>
+    <div id="identity-picker"></div>
+  </div>
+
   <div class="rack-panel">
     <div class="rack-label">Your Rack</div>
     <div class="rack-tiles" id="rack"></div>
@@ -550,11 +555,77 @@
     renderBoard();
   });
 
+  const IDENTITY_KEY = "scrabble_player_id";
+
+  async function loadIdentityPicker() {
+    const savedId = localStorage.getItem(IDENTITY_KEY);
+    const savedName = localStorage.getItem(IDENTITY_KEY + "_name");
+    const panel = document.getElementById("identity-picker");
+
+    if (savedId) {
+      panel.innerHTML = `
+        <span style="color:var(--ui-text)">Playing as <strong>${savedName}</strong></span>
+        <button class="secondary" onclick="clearIdentity()" style="margin-left:10px">Switch player</button>
+      `;
+      fetchMyRack(savedId);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/players`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!data.players || data.players.length === 0) {
+        panel.innerHTML = `<span class="hint">No players have joined yet — use /join in Discord first.</span>`;
+        return;
+      }
+      const options = data.players
+        .map(p => `<option value="${p.player_id}" data-name="${p.name}">${p.name}</option>`)
+        .join("");
+      panel.innerHTML = `
+        <select id="playerSelect">${options}</select>
+        <button onclick="confirmIdentity()">This is me</button>
+      `;
+    } catch (err) {
+      panel.innerHTML = `<span class="hint">Could not load players from the API.</span>`;
+    }
+  }
+
+  function confirmIdentity() {
+    const select = document.getElementById("playerSelect");
+    const id = select.value;
+    const name = select.selectedOptions[0].dataset.name;
+    localStorage.setItem(IDENTITY_KEY, id);
+    localStorage.setItem(IDENTITY_KEY + "_name", name);
+    loadIdentityPicker();
+  }
+
+  function clearIdentity() {
+    localStorage.removeItem(IDENTITY_KEY);
+    localStorage.removeItem(IDENTITY_KEY + "_name");
+    rack = [];
+    renderRack();
+    loadIdentityPicker();
+  }
+
+  async function fetchMyRack(playerId) {
+    try {
+      const res = await fetch(`${API_BASE}/rack/${playerId}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.rack) {
+        rack = data.rack === "(empty)" ? [] : data.rack.split(" ");
+        renderRack();
+      }
+    } catch (err) {
+      console.warn("Could not fetch rack:", err.message);
+    }
+  }
+
   // Initial render, then fetch the real board and start polling.
   renderBoard();
   renderRack();
   fetchConfirmedBoard();
   setInterval(fetchConfirmedBoard, POLL_INTERVAL_MS);
+  loadIdentityPicker();
 </script>
 
 </body>
