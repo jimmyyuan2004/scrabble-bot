@@ -329,8 +329,10 @@
       <input type="text" id="rackInput" placeholder="e.g. SCRABLE" maxlength="7">
       <button id="setRackBtn">Set Rack</button>
       <button class="secondary" id="clearBoardBtn">Clear Board</button>
+      <button id="submitPlayBtn">Submit Play</button>
     </div>
-    <div class="hint">Gold-outlined tiles are confirmed plays from Discord (read-only, auto-refreshing). Click a rack tile then an empty square to try out a placement locally — this never gets sent anywhere.</div>
+    <div class="hint">Gold-outlined tiles are confirmed plays from Discord (read-only, auto-refreshing). Click a rack tile then an empty square to place your word, then hit Submit Play.</div>
+    <div class="hint" id="playStatus"></div>
   </div>
 
 <script>
@@ -619,6 +621,96 @@
       console.warn("Could not fetch rack:", err.message);
     }
   }
+
+  function buildSubmission() {
+    const localKeys = Object.keys(localBoard);
+    if (localKeys.length === 0) {
+      return { error: "You haven't placed any tiles yet." };
+    }
+
+    const coords = localKeys.map(k => k.split(',').map(Number));
+    const rows = new Set(coords.map(([r]) => r));
+    const cols = new Set(coords.map(([, c]) => c));
+
+    let direction;
+    if (rows.size === 1) direction = 'across';
+    else if (cols.size === 1) direction = 'down';
+    else return { error: "Tiles must all be in a single row or column." };
+
+    let letters = '';
+    let row, col;
+
+    if (direction === 'across') {
+      row = [...rows][0];
+      const colValues = coords.map(([, c]) => c).sort((a, b) => a - b);
+      col = colValues[0];
+      const maxCol = colValues[colValues.length - 1];
+      for (let c = col; c <= maxCol; c++) {
+        const key = `${row},${c}`;
+        const letter = localBoard[key] || confirmedBoard[key];
+        if (!letter) return { error: `Gap in your word at column ${c} — tiles must be contiguous.` };
+        letters += letter;
+      }
+    } else {
+      col = [...cols][0];
+      const rowValues = coords.map(([r]) => r).sort((a, b) => a - b);
+      row = rowValues[0];
+      const maxRow = rowValues[rowValues.length - 1];
+      for (let r = row; r <= maxRow; r++) {
+        const key = `${r},${col}`;
+        const letter = localBoard[key] || confirmedBoard[key];
+        if (!letter) return { error: `Gap in your word at row ${r} — tiles must be contiguous.` };
+        letters += letter;
+      }
+    }
+
+    return { row, col, direction, letters };
+  }
+
+  async function submitPlay() {
+    const statusEl = document.getElementById("playStatus");
+    const playerId = localStorage.getItem(IDENTITY_KEY);
+
+    if (!playerId) {
+      statusEl.textContent = "Pick who you are first.";
+      return;
+    }
+
+    const submission = buildSubmission();
+    if (submission.error) {
+      statusEl.textContent = submission.error;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/play`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: playerId,
+          letters: submission.letters,
+          row: submission.row,
+          col: submission.col,
+          direction: submission.direction,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        statusEl.textContent = `❌ ${data.error || 'Play rejected.'}`;
+        return;
+      }
+
+      statusEl.textContent = `✅ Played ${submission.letters} — pending challenge resolution.`;
+      localBoard = {};
+      renderBoard();
+      pollAll();
+    } catch (err) {
+      statusEl.textContent = "Could not reach the API.";
+    }
+  }
+
+  document.getElementById("submitPlayBtn").addEventListener("click", submitPlay);
 
   // Initial render, then fetch the real board and start polling.
   renderBoard();
