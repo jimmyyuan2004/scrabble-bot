@@ -51,6 +51,7 @@ async def send_rack_dm(player_id: str):
 
 @tree.command(name="ping", description="Check the bot is alive")
 async def ping(interaction: discord.Interaction):
+    await interaction.response.defer()
     await interaction.response.send_message("🏓 Pong!!!")
 
 @tree.command(name="newgame", description="Start a new Scrabble game")
