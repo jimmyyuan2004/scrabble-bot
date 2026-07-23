@@ -638,22 +638,20 @@
     }
   }
 
-  async function fetchMyPending(playerId) {
+  async function fetchAllPending() {
     try {
-      const res = await fetch(`${API_BASE}/pending/${playerId}`, { cache: 'no-store' });
+      const res = await fetch(`${API_BASE}/pending`, { cache: 'no-store' });
       const data = await res.json();
-      if (data.pending) {
-        const newPending = {};
-        data.pending.positions.forEach(([r, c, letter]) => {
+      const newPending = {};
+      (data.pending || []).forEach(play => {
+        play.positions.forEach(([r, c, letter]) => {
           newPending[`${r},${c}`] = letter;
         });
-        pendingBoard = newPending;
-      } else {
-        pendingBoard = {};
-      }
+      });
+      pendingBoard = newPending;
       renderBoard();
     } catch (err) {
-      console.warn("Could not fetch pending play:", err.message);
+      console.warn("Could not fetch pending plays:", err.message);
     }
   }
 
@@ -704,10 +702,10 @@
 
   function pollAll() {
     fetchConfirmedBoard();
+    fetchAllPending();
     const savedId = localStorage.getItem(IDENTITY_KEY);
     if (savedId) {
       fetchMyRack(savedId);
-      fetchMyPending(savedId);
     }
   }
 

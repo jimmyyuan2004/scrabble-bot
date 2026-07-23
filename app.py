@@ -75,17 +75,19 @@ def play():
     except ScrabbleError as e:
         return jsonify({"error": str(e)}), 400
 
-@app.route("/pending/<player_id>", methods=["GET"])
-def pending(player_id):
+@app.route("/pending", methods=["GET"])
+def pending():
     game = get_game()
-    p = game.pending_plays.get(player_id)
-    if p is None:
-        return jsonify({"pending": None})
     return jsonify({
-        "pending": {
-            "letters": p.letters,
-            "positions": p.positions,  # list of [row, col, letter]
-        }
+        "pending": [
+            {
+                "player_id": pid,
+                "player_name": game.players[pid].name,
+                "letters": p.letters,
+                "positions": p.positions,
+            }
+            for pid, p in game.pending_plays.items()
+        ]
     })
 
 @app.route("/board", methods=["GET"])
