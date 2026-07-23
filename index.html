@@ -646,6 +646,12 @@
     return { row, col, direction, letters };
   }
 
+  function pollAll() {
+    fetchConfirmedBoard();
+    const savedId = localStorage.getItem(IDENTITY_KEY);
+    if (savedId) fetchMyRack(savedId);
+  }
+
   async function submitPlay() {
     const statusEl = document.getElementById("playStatus");
     const playerId = localStorage.getItem(IDENTITY_KEY);
@@ -691,11 +697,12 @@
 
   document.getElementById("submitPlayBtn").addEventListener("click", submitPlay);
 
-  // Initial render, then fetch the real board and start polling.
+  // Initial render, then fetch real data and start polling both
+  // the board and (if an identity is set) the player's own rack.
   renderBoard();
   renderRack();
-  fetchConfirmedBoard();
-  setInterval(fetchConfirmedBoard, POLL_INTERVAL_MS);
+  pollAll();
+  setInterval(pollAll, POLL_INTERVAL_MS);
   loadIdentityPicker();
 </script>
 

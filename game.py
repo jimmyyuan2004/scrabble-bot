@@ -305,7 +305,7 @@ class Game:
             self.pending_plays.pop(player_id)
             self._write_to_board(pending)
             self._confirmed_counts[player_id] = (
-                self._confirmed_counts.get(player_id, 0) + len(pending.letters)
+                self._confirmed_counts.get(player_id, 0) + len(pending.new_letters)
             )
             resolved.append(player_id)
             self.history.append(
@@ -321,7 +321,7 @@ class Game:
         if pending is None:
             raise ScrabbleError("You have no pending play to undo.")
         player = self.players[player_id]
-        player.add_tiles(list(pending.letters))
+        player.add_tiles(list(pending.new_letters)) # only return the new letters
         self.history.append(f"{player.name} undid their play of {pending.letters}.")
         return pending.letters
     

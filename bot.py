@@ -79,7 +79,6 @@ async def ping(interaction: discord.Interaction):
 
 @tree.command(name="newgame", description="Start a new Scrabble game")
 async def newgame(interaction: discord.Interaction):
-    global game
     game = Game()
     save_game(game)
     await interaction.response.send_message("🎲 New game created. Use /join to add players.")
@@ -88,6 +87,7 @@ async def newgame(interaction: discord.Interaction):
 @tree.command(name="join", description="Join the current game")
 async def join(interaction: discord.Interaction):
     try:
+        game = get_current_game()
         game.add_player(str(interaction.user.id), interaction.user.display_name)
         save_game(game)
         await interaction.response.send_message(
@@ -99,6 +99,7 @@ async def join(interaction: discord.Interaction):
 
 @tree.command(name="players", description="List players in the current game")
 async def players(interaction: discord.Interaction):
+    game = get_current_game()
     names = game.list_players()
     if not names:
         await interaction.response.send_message("No players yet. Use /join.")
@@ -109,6 +110,7 @@ async def players(interaction: discord.Interaction):
 @tree.command(name="start", description="Start the game and deal racks")
 async def start(interaction: discord.Interaction):
     try:
+        game = get_current_game()
         game.start_game()
         save_game(game)
         await interaction.response.send_message("🀄 Game started! Racks are being sent via DM...")
@@ -122,6 +124,7 @@ async def start(interaction: discord.Interaction):
 @tree.command(name="rack", description="DM yourself your current rack")
 async def rack(interaction: discord.Interaction):
     try:
+        game = get_current_game()
         rack_str = game.get_rack(str(interaction.user.id))
         await interaction.user.send(f"Your rack:\n\n{rack_str}")
         await interaction.response.send_message("📬 Sent your rack via DM.", ephemeral=True)
@@ -284,6 +287,7 @@ async def exchange(interaction: discord.Interaction, letters: str):
 
 @tree.command(name="tilestatus", description="Show how many tiles remain in the bag")
 async def status(interaction: discord.Interaction):
+    game = get_current_game()
     if not game.started:
         await interaction.response.send_message("Game hasn't started yet — no bag to report on.")
         return
@@ -343,8 +347,8 @@ async def challenge(
 
 @tree.command(name="end", description="End the current game")
 async def end(interaction: discord.Interaction):
-    global game
     try:
+        game = get_current_game()
         game.end_game()
         summary = "\n".join(
             f"{p.name}: {p.rack_display()}" for p in game.players.values()
