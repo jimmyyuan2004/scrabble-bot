@@ -61,12 +61,32 @@ def play():
 
     game = get_game()
     try:
+        before = set(game.pending_plays.keys()) - {player_id}
         game.play_tiles(player_id, letters, row, col, direction)
+
+        # Draw replacements for anyone whose pending play just got
+        # auto-confirmed by this new play (mirrors bot.py's /play logic).
+        for other_id in before:
+            if other_id not in game.pending_plays:
+                game.draw_replacements(other_id)
+
         save_game(game)
         return jsonify({"ok": True, "message": f"Play recorded: {letters}"})
     except ScrabbleError as e:
         return jsonify({"error": str(e)}), 400
 
+@app.route("/pending/<player_id>", methods=["GET"])
+def pending(player_id):
+    game = get_game()
+    p = game.pending_plays.get(player_id)
+    if p is None:
+        return jsonify({"pending": None})
+    return jsonify({
+        "pending": {
+            "letters": p.letters,
+            "positions": p.positions,  # list of [row, col, letter]
+        }
+    })
 
 @app.route("/board", methods=["GET"])
 def board():

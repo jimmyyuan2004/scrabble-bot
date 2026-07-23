@@ -195,6 +195,16 @@
       0 0 0 2px var(--star);
   }
 
+  .tile.pending {
+    cursor: default;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 -2px 3px var(--tile-shadow) inset,
+      0 2px 3px rgba(0,0,0,0.3),
+      0 0 0 2px rgba(201, 162, 39, 0.5);
+    opacity: 0.75;
+  }
+
   .rack-panel {
     background: linear-gradient(160deg, var(--frame), var(--frame-dark));
     padding: 14px 18px;
@@ -410,6 +420,9 @@
   // Index into `rack` of the currently-selected tile, or null.
   let selectedRackIndex = null;
 
+  // a pending board layer for tiles that have been submitted but not yet confirmed by the server. This is used to prevent tiles from being returned to the rack if a poll happens mid-placement.
+  let pendingBoard = {};
+
   const boardEl = document.getElementById('board');
   const rackEl = document.getElementById('rack');
 
@@ -441,6 +454,7 @@
         }
 
         const confirmedLetter = confirmedBoard[key];
+        const pendingLetter = pendingBoard[key];
         const localLetter = localBoard[key];
 
         function addBonusBadge(tileEl) {
@@ -467,6 +481,16 @@
           const points = document.createElement('span');
           points.className = 'points';
           points.textContent = LETTER_POINTS[confirmedLetter] ?? '';
+          tile.appendChild(points);
+          addBonusBadge(tile);
+          cell.appendChild(tile);
+        } else if (pendingLetter) {
+          const tile = document.createElement('div');
+          tile.className = 'tile pending';
+          tile.textContent = pendingLetter;
+          const points = document.createElement('span');
+          points.className = 'points';
+          points.textContent = LETTER_POINTS[pendingLetter] ?? '';
           tile.appendChild(points);
           addBonusBadge(tile);
           cell.appendChild(tile);
@@ -595,7 +619,14 @@
       const res = await fetch(`${API_BASE}/rack/${playerId}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.rack) {
-        rack = data.rack === "(empty)" ? [] : data.rack.split(" ");
+        let serverRack = data.rack === "(empty)" ? [] : data.rack.split(" ");
+        // Exclude letters already placed locally (pending submission),
+        // so a poll mid-placement doesn't "return" them to the rack.
+        Object.values(localBoard).forEach(letter => {
+          const idx = serverRack.indexOf(letter);
+          if (idx !== -1) serverRack.splice(idx, 1);
+        });
+        rack = serverRack;
         renderRack();
       } else if (data.error) {
         // No active game, or this player isn't part of the current game
@@ -604,6 +635,25 @@
       }
     } catch (err) {
       console.warn("Could not fetch rack:", err.message);
+    }
+  }
+
+  async function fetchMyPending(playerId) {
+    try {
+      const res = await fetch(`${API_BASE}/pending/${playerId}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.pending) {
+        const newPending = {};
+        data.pending.positions.forEach(([r, c, letter]) => {
+          newPending[`${r},${c}`] = letter;
+        });
+        pendingBoard = newPending;
+      } else {
+        pendingBoard = {};
+      }
+      renderBoard();
+    } catch (err) {
+      console.warn("Could not fetch pending play:", err.message);
     }
   }
 
@@ -655,7 +705,10 @@
   function pollAll() {
     fetchConfirmedBoard();
     const savedId = localStorage.getItem(IDENTITY_KEY);
-    if (savedId) fetchMyRack(savedId);
+    if (savedId) {
+      fetchMyRack(savedId);
+      fetchMyPending(savedId);
+    }
   }
 
   async function submitPlay() {
