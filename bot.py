@@ -32,9 +32,8 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# Single game per bot instance for now (matches "one game" scope of your
-# current plan — "multiple games per server" is listed as a future feature).
-game = load_game() if game_exists() else Game()
+def get_current_game() -> Game:
+    return load_game() if game_exists() else Game()
 
 RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")  # auto-set by Render for web services
 _keepalive_task = None
@@ -63,7 +62,7 @@ async def on_ready():
     await tree.sync()
     print(f"Logged in as {client.user}")
 
-async def send_rack_dm(player_id: str):
+async def send_rack_dm(player_id: str, game: Game):
     """DM the player their current full rack."""
     try:
         rack_str = game.get_rack(player_id)
@@ -150,6 +149,7 @@ async def play(
     direction: app_commands.Choice[str],
 ):
     try:
+        game = get_current_game()  # ← always start from the latest saved state
         acting_id = str(interaction.user.id)
         before = set(game.pending_plays.keys()) - {acting_id}
 
@@ -163,11 +163,11 @@ async def play(
         for other_id in before:
             if other_id not in game.pending_plays:
                 game.draw_replacements(other_id)
-                await send_rack_dm(other_id)
+                await send_rack_dm(other_id, game)
                 auto_confirmed_names.append(game.players[other_id].name)
         save_game(game)
 
-        await send_rack_dm(acting_id)
+        await send_rack_dm(acting_id, game)
 
         message = (
             f"📝 {interaction.user.display_name} played **{letters.upper()}** "
@@ -186,9 +186,10 @@ async def play(
 @tree.command(name="undo", description="Undo your current pending play")
 async def undo(interaction: discord.Interaction):
     try:
+        game = get_current_game()  # ← always start from the latest saved state
         letters = game.undo_last_play(str(interaction.user.id))
         save_game(game)
-        await send_rack_dm(str(interaction.user.id))
+        await send_rack_dm(str(interaction.user.id), game)
         await interaction.response.send_message(
             f"↩️ {interaction.user.display_name} undid their play of **{letters}**."
         )
@@ -257,6 +258,7 @@ async def howtoplay(interaction: discord.Interaction):
 @tree.command(name="draw", description="Draw replacement tiles after a confirmed play")
 async def draw(interaction: discord.Interaction):
     try:
+        game = get_current_game()
         drawn = game.draw_replacements(str(interaction.user.id))
         save_game(game)
         await interaction.user.send(f"You drew: {' '.join(drawn)}")
@@ -270,9 +272,10 @@ async def draw(interaction: discord.Interaction):
 @app_commands.describe(letters="The letters you want to exchange")
 async def exchange(interaction: discord.Interaction, letters: str):
     try:
+        game = get_current_game()
         game.exchange_tiles(str(interaction.user.id), letters)
         save_game(game)
-        await send_rack_dm(str(interaction.user.id))
+        await send_rack_dm(str(interaction.user.id), game)
         await interaction.response.send_message(
             f"🔄 {interaction.user.display_name} exchanged {len(letters)} tile(s)."
         )
@@ -314,12 +317,13 @@ async def challenge(
     player: discord.Member,
 ):
     try:
+        game = get_current_game()  # ← always start from the latest saved state
         player_id = str(player.id)
         if result.value == "success":
             game.challenge_success(player_id)
             save_game(game)
             restart_keepalive()
-            await send_rack_dm(player_id)
+            await send_rack_dm(player_id, game)
             await interaction.response.send_message(
                 f"❌ Challenge succeeded — {player.display_name}'s tiles were returned.\n\n \"Thats not a word! 👎\" - Justin"
             )
@@ -328,7 +332,7 @@ async def challenge(
             game.draw_replacements(player_id)
             save_game(game)
             restart_keepalive()
-            await send_rack_dm(player_id)
+            await send_rack_dm(player_id, game)
             bag_note = "\n\n🎒 The bag is now empty!" if len(game.bag) == 0 else ""
             await interaction.response.send_message(
                 f"✅ Challenge failed — {player.display_name}'s play stands, "
