@@ -326,9 +326,6 @@
     <div class="rack-label">Your Rack</div>
     <div class="rack-tiles" id="rack"></div>
     <div class="controls">
-      <input type="text" id="rackInput" placeholder="e.g. SCRABLE" maxlength="7">
-      <button id="setRackBtn">Set Rack</button>
-      <button class="secondary" id="clearBoardBtn">Clear Board</button>
       <button id="submitPlayBtn">Submit Play</button>
     </div>
     <div class="hint">Gold-outlined tiles are confirmed plays from Discord (read-only, auto-refreshing). Click a rack tile then an empty square to place your word, then hit Submit Play.</div>
@@ -541,21 +538,6 @@
     renderBoard();
     renderRack();
   }
-
-  setRackBtn.addEventListener('click', () => {
-    const raw = rackInput.value.toUpperCase().replace(/[^A-Z?]/g, '');
-    if (!raw) return;
-    rack = raw.split('');
-    selectedRackIndex = null;
-    rackInput.value = '';
-    renderRack();
-  });
-
-  clearBoardBtn.addEventListener('click', () => {
-    localBoard = {};
-    selectedRackIndex = null;
-    renderBoard();
-  });
 
   const IDENTITY_KEY = "scrabble_player_id";
 
