@@ -584,7 +584,9 @@
     localStorage.removeItem(IDENTITY_KEY);
     localStorage.removeItem(IDENTITY_KEY + "_name");
     rack = [];
+    localBoard = {};
     renderRack();
+    renderBoard();
     loadIdentityPicker();
   }
 
@@ -595,6 +597,10 @@
       if (data.rack) {
         rack = data.rack === "(empty)" ? [] : data.rack.split(" ");
         renderRack();
+      } else if (data.error) {
+        // No active game, or this player isn't part of the current game
+        // anymore (e.g. after /end or /newgame) — reset to the default state.
+        clearIdentity();
       }
     } catch (err) {
       console.warn("Could not fetch rack:", err.message);
