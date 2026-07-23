@@ -56,6 +56,9 @@ def play():
     col = data.get("col")
     direction = data.get("direction")  # "across" or "down"
 
+    if None in (player_id, letters, row, col, direction):
+        return jsonify({"error": "Missing required field(s)."}), 400
+
     game = get_game()
     try:
         game.play_tiles(player_id, letters, row, col, direction)
@@ -76,6 +79,9 @@ def join():
     data = request.get_json()
     player_id = data.get("player_id")
     name = data.get("name")
+
+    if None in (player_id, name):
+        return jsonify({"error": "Missing required field(s)."}), 400
 
     game = get_game()
     try:
@@ -104,6 +110,9 @@ def challenge():
     player_id = data.get("player_id")
     result = data.get("result")  # "success" or "fail"
 
+    if None in (player_id, result):
+        return jsonify({"error": "Missing required field(s)."}), 400
+
     game = get_game()
     try:
         if result == "success":
@@ -128,6 +137,9 @@ def exchange():
     player_id = data.get("player_id")
     letters = data.get("letters")
 
+    if None in (player_id, letters):
+        return jsonify({"error": "Missing required field(s)."}), 400
+
     game = get_game()
     try:
         game.exchange_tiles(player_id, letters)
@@ -141,6 +153,9 @@ def exchange():
 def undo():
     data = request.get_json()
     player_id = data.get("player_id")
+
+    if player_id is None:
+        return jsonify({"error": "Missing required field: player_id."}), 400
 
     game = get_game()
     try:
