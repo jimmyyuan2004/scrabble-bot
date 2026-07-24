@@ -105,7 +105,7 @@ class Game:
     def start_game(self) -> None:
         if self.started:
             raise ScrabbleError("Game has already started.")
-        if len(self.players) < 1:
+        if len(self.players) < 2:
             raise ScrabbleError("Need at least 2 players to start.")
 
         self.bag = create_tile_bag()

@@ -279,6 +279,47 @@
     color: rgba(42,31,20,0.6);
   }
 
+  .game-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .sidebar-panel {
+    background: linear-gradient(160deg, var(--frame), var(--frame-dark));
+    padding: 14px 16px;
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    min-width: 140px;
+  }
+
+  .player-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 4px;
+    font-size: 12px;
+    color: var(--ui-text);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .player-row:last-child {
+    border-bottom: none;
+  }
+
+  .player-row.is-you {
+    color: var(--star);
+    font-weight: 600;
+  }
+
+  .player-score {
+    color: var(--ui-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
   .controls {
     display: flex;
     gap: 8px;
@@ -326,8 +367,14 @@
 
   <h1>Scrabble Board — Live View</h1>
 
-  <div class="board-frame">
-    <div class="board" id="board"></div>
+  <div class="game-row">
+    <div class="board-frame">
+      <div class="board" id="board"></div>
+    </div>
+    <div class="sidebar-panel">
+      <div class="rack-label">Players</div>
+      <div id="players-list"></div>
+    </div>
   </div>
 
   <div class="legend">
@@ -656,6 +703,29 @@
     loadIdentityPicker();
   }
 
+  async function fetchPlayersList() {
+    try {
+      const res = await fetch(`${API_BASE}/players`, { cache: 'no-store' });
+      const data = await res.json();
+      const listEl = document.getElementById('players-list');
+      const myId = localStorage.getItem(IDENTITY_KEY);
+
+      if (!data.players || data.players.length === 0) {
+        listEl.innerHTML = `<span class="hint">No players yet.</span>`;
+        return;
+      }
+
+      listEl.innerHTML = data.players.map(p => `
+        <div class="player-row${p.player_id === myId ? ' is-you' : ''}">
+          <span>${p.name}${p.player_id === myId ? ' (you)' : ''}</span>
+          <span class="player-score">—</span>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.warn("Could not fetch players list:", err.message);
+    }
+  }
+
   async function fetchMyRack(playerId) {
     try {
       const res = await fetch(`${API_BASE}/rack/${playerId}`, { cache: 'no-store' });
@@ -760,6 +830,7 @@
   function pollAll() {
     fetchConfirmedBoard();
     fetchAllPending();
+    fetchPlayersList();
     const savedId = localStorage.getItem(IDENTITY_KEY);
     if (savedId) {
       fetchMyRack(savedId);
