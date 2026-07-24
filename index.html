@@ -279,12 +279,15 @@
     color: rgba(42,31,20,0.6);
   }
 
-  .game-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
+  .board-wrapper {
+    position: relative;
+  }
+
+  .sidebar-panel {
+    position: absolute;
+    left: calc(100% + 20px);
+    top: 0;
+    width: 140px;
   }
 
   .sidebar-panel {
@@ -361,13 +364,24 @@
     text-align: center;
     max-width: 340px;
   }
+
+  @media (max-width: 700px) {
+    .sidebar-panel {
+      position: static;
+      width: 100%;
+      max-width: 320px;
+      margin: 16px auto 0;
+      left: auto;
+      top: auto;
+    }
+  }
 </style>
 </head>
 <body>
 
   <h1>Scrabble Board — Live View</h1>
 
-  <div class="game-row">
+  <div class="board-wrapper">
     <div class="board-frame">
       <div class="board" id="board"></div>
     </div>
