@@ -18,8 +18,6 @@ from collections import Counter
 from typing import Dict, List
 import random
 
-from discord import player
-
 from tiles import create_tile_bag, draw_tiles
 
 
@@ -61,11 +59,12 @@ class Player:
 
 
 class PendingPlay:
-    def __init__(self, player_id: str, letters: str, positions: List[tuple], new_letters: str):
+    def __init__(self, player_id: str, letters: str, positions: List[tuple], new_letters: str, blanks: List[int] = None):
         self.player_id = player_id
         self.letters = letters.upper()       # the full word, for rendering
         self.positions = positions           # full list of (r, c, letter)
         self.new_letters = new_letters.upper()  # only the letters actually charged from rack
+        self.blanks = set(blanks or [])  # indices into `positions`/`letters` that were blank tiles
 
     def __repr__(self):
         return f"PendingPlay(player_id={self.player_id!r}, letters={self.letters!r})"
@@ -77,6 +76,7 @@ class Game:
         self.bag: List[str] = []
         self.started: bool = False
         self.board: Dict[str, str] = {}  # "row,col" -> letter, only for CONFIRMED plays
+        self.board_blanks: Dict[str, bool] = {}  # "row,col" -> True if that tile was a blank, only for CONFIRMED plays
         self.turn_order: List[str] = []
         self.turn_index: int = 0
         # At most one unresolved pending play per player.
@@ -139,8 +139,11 @@ class Game:
         return positions
     
     def _write_to_board(self, pending: "PendingPlay") -> None:
-        for r, c, letter in pending.positions:
-            self.board[f"{r},{c}"] = letter
+        for i, (r, c, letter) in enumerate(pending.positions):
+            key = f"{r},{c}"
+            self.board[key] = letter
+            if i in pending.blanks:
+                self.board_blanks[key] = True
 
     # ------------------------------------------------------------------
     # Racks
@@ -155,7 +158,7 @@ class Game:
     # Playing tiles
     # ------------------------------------------------------------------
 
-    def play_tiles(self, player_id: str, letters: str, row: int, col: int, direction: str) -> None:
+    def play_tiles(self, player_id: str, letters: str, row: int, col: int, direction: str, blanks: List[int] = None) -> None:
         self._require_started()
         player = self._require_player(player_id)
 
@@ -164,12 +167,13 @@ class Game:
                 "You already have a pending play awaiting challenge resolution."
             )
 
+        blanks = set(blanks or [])
         letters = letters.upper()
         positions = self._compute_positions(row, col, direction, letters)
 
         # Split into new tiles (need rack + bag) vs crossed tiles (must match board).
         new_letters = ""
-        for r, c, letter in positions:
+        for i, (r, c, letter) in enumerate(positions):
             key = f"{r},{c}"
             existing = self.board.get(key)
             if existing is not None:
@@ -179,7 +183,9 @@ class Game:
                         f"'{existing}', but your word needs '{letter}' there."
                     )
             else:
-                new_letters += letter
+                # A blank tile is charged as "?" against the rack, even though
+                # the board itself will display the real assigned letter.
+                new_letters += "?" if i in blanks else letter
 
         if not new_letters:
             raise ScrabbleError(
@@ -193,7 +199,7 @@ class Game:
         self.auto_confirm_others(player_id)
 
         player.remove_tiles(new_letters)
-        self.pending_plays[player_id] = PendingPlay(player_id, letters, positions, new_letters)
+        self.pending_plays[player_id] = PendingPlay(player_id, letters, positions, new_letters, blanks=blanks)
         self.history.append(f"{player.name} played {letters} at ({row},{col}) {direction} (pending).")
     
     def _missing_letters_message(self, player: Player, letters: str) -> str:

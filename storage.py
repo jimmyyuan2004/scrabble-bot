@@ -25,6 +25,7 @@ def save_game(game: Game, path: str = DEFAULT_SAVE_PATH) -> None:
         "turn_index": game.turn_index,
         "history": game.history,
         "board": game.board,
+        "board_blanks": game.board_blanks,
         "players": {
             player_id: {"name": player.name, "rack": player.rack}
             for player_id, player in game.players.items()
@@ -34,6 +35,7 @@ def save_game(game: Game, path: str = DEFAULT_SAVE_PATH) -> None:
                 "letters": pending.letters,
                 "positions": pending.positions,
                 "new_letters": pending.new_letters,
+                "blanks": list(pending.blanks),
             }
             for player_id, pending in game.pending_plays.items()
         },
@@ -56,7 +58,7 @@ def load_game(path: str = DEFAULT_SAVE_PATH) -> Game:
     game.turn_index = data["turn_index"]
     game.history = data["history"]
     game.board = data.get("board", {})
-
+    game.board_blanks = data.get("board_blanks", {})
     for player_id, pdata in data["players"].items():
         player = Player(player_id, pdata["name"])
         player.rack = pdata["rack"]
@@ -65,7 +67,8 @@ def load_game(path: str = DEFAULT_SAVE_PATH) -> Game:
     for player_id, pdata in data["pending_plays"].items():
         # positions come back as lists from JSON; tuples aren't required internally
         game.pending_plays[player_id] = PendingPlay(
-            player_id, pdata["letters"], pdata["positions"], pdata["new_letters"]
+            player_id, pdata["letters"], pdata["positions"], pdata["new_letters"],
+            blanks=pdata.get("blanks", []),
         )
 
     game._confirmed_counts = data.get("confirmed_counts", {})

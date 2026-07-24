@@ -55,6 +55,7 @@ def play():
     row = data.get("row")
     col = data.get("col")
     direction = data.get("direction")  # "across" or "down"
+    blanks = data.get("blanks", [])  # list of 0-based indices into `letters`
 
     if None in (player_id, letters, row, col, direction):
         return jsonify({"error": "Missing required field(s)."}), 400
@@ -62,7 +63,7 @@ def play():
     game = get_game()
     try:
         before = set(game.pending_plays.keys()) - {player_id}
-        game.play_tiles(player_id, letters, row, col, direction)
+        game.play_tiles(player_id, letters, row, col, direction, blanks=blanks)
 
         # Draw replacements for anyone whose pending play just got
         # auto-confirmed by this new play (mirrors bot.py's /play logic).
@@ -85,6 +86,7 @@ def pending():
                 "player_name": game.players[pid].name,
                 "letters": p.letters,
                 "positions": p.positions,
+                "blanks": list(p.blanks),
             }
             for pid, p in game.pending_plays.items()
         ]
@@ -93,7 +95,7 @@ def pending():
 @app.route("/board", methods=["GET"])
 def board():
     game = get_game()
-    return jsonify({"board": game.board})
+    return jsonify({"board": game.board, "board_blanks": game.board_blanks})
 
 
 @app.route("/join", methods=["POST"])

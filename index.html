@@ -140,6 +140,16 @@
     z-index: 3;
   }
 
+  .tile .blank-marker {
+    position: absolute;
+    bottom: 1px;
+    left: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 8px;
+    font-style: italic;
+    color: rgba(42,31,20,0.45);
+  }
+
   .bonus-badge.tw { background: var(--tw); }
   .bonus-badge.dw { background: var(--dw); color: rgba(60,30,20,0.75); }
   .bonus-badge.tl { background: var(--tl); }
@@ -422,6 +432,9 @@
 
   // a pending board layer for tiles that have been submitted but not yet confirmed by the server. This is used to prevent tiles from being returned to the rack if a poll happens mid-placement.
   let pendingBoard = {};
+  let pendingBlanks = {}; // "r,c" -> true for any blanks placed in a pending play, so they can be displayed as the chosen letter instead of "?" until the play is confirmed or rejected.
+  let confirmedBlanks = {}; // "r,c" -> true for any blanks that have been confirmed by the server, so they can be displayed as the chosen letter instead of "?" until the play is confirmed or rejected.
+  let blankDisplay = {}; // "r,c" -> letter for any blanks placed locally, so they can be displayed as the chosen letter instead of "?" until the play is submitted.
 
   const boardEl = document.getElementById('board');
   const rackEl = document.getElementById('rack');
@@ -432,6 +445,7 @@
       if (!res.ok) throw new Error(`API returned ${res.status}`);
       const data = await res.json();
       confirmedBoard = data.board || {};
+      confirmedBlanks = data.board_blanks || {};
       renderBoard();
     } catch (err) {
       // Quietly leave the last-known board in place if the API is
@@ -475,29 +489,45 @@
         if (confirmedLetter) {
           // Server-confirmed tile: read-only, slightly different styling
           // so it's visually clear this one didn't come from your clicks.
+          const isBlank = !!confirmedBlanks[key];
           const tile = document.createElement('div');
           tile.className = 'tile confirmed';
           tile.textContent = confirmedLetter;
           const points = document.createElement('span');
           points.className = 'points';
-          points.textContent = LETTER_POINTS[confirmedLetter] ?? '';
+          points.textContent = isBlank ? '0' : (LETTER_POINTS[confirmedLetter] ?? '' );
           tile.appendChild(points);
+          if (isBlank) {
+            const marker = document.createElement('span');
+            marker.className = 'blank-marker';
+            marker.textContent = '*';
+            marker.title = 'Blank tile (0 points)';
+            tile.appendChild(marker);
+          }
           addBonusBadge(tile);
           cell.appendChild(tile);
         } else if (pendingLetter) {
+          const isBlank = !!pendingBlanks[key];
           const tile = document.createElement('div');
           tile.className = 'tile pending';
           tile.textContent = pendingLetter;
           const points = document.createElement('span');
           points.className = 'points';
-          points.textContent = LETTER_POINTS[pendingLetter] ?? '';
+          points.textContent = isBlank ? '0' : (LETTER_POINTS[pendingLetter] ?? '');
           tile.appendChild(points);
+          if (isBlank) {
+            const marker = document.createElement('span');
+            marker.className = 'blank-marker';
+            marker.textContent = '*';
+            marker.title = 'Blank tile (0 points)';
+            tile.appendChild(marker);
+          }
           addBonusBadge(tile);
           cell.appendChild(tile);
         } else if (localLetter) {
           const tile = document.createElement('div');
           tile.className = 'tile placed';
-          tile.textContent = localLetter;
+          tile.textContent = blankDisplay[key] || localLetter;
           const points = document.createElement('span');
           points.className = 'points';
           points.textContent = LETTER_POINTS[localLetter] ?? '';
@@ -538,10 +568,20 @@
 
   function placeTileAt(key) {
     if (selectedRackIndex === null) return;
-    if (confirmedBoard[key] || localBoard[key]) return; // occupied, ignore
+    if (confirmedBoard[key] || localBoard[key] || pendingBoard[key]) return; // occupied, ignore
 
     const letter = rack[selectedRackIndex];
-    localBoard[key] = letter;
+
+    if (letter === "?") {
+      const chosen = prompt("What does this blank tile represent? (A-Z)");
+      if (!chosen || !/^[A-Za-z]$/.test(chosen)) {
+        alert("Invalid choice. Please enter a letter (A-Z).");
+        return;
+      }
+      blankDisplay[key] = chosen.toUpperCase();
+    }
+
+    localBoard[key] = letter; // still stores the raw "?" for accounting/submission
     rack.splice(selectedRackIndex, 1);
     selectedRackIndex = null;
 
@@ -553,6 +593,7 @@
     const letter = localBoard[key];
     if (!letter) return; // confirmed tiles can't be picked up
     delete localBoard[key];
+    delete blankDisplay[key]; // remove any associated blank display
     rack.push(letter);
     selectedRackIndex = null;
 
@@ -609,6 +650,7 @@
     localStorage.removeItem(IDENTITY_KEY + "_name");
     rack = [];
     localBoard = {};
+    blankDisplay = {};
     renderRack();
     renderBoard();
     loadIdentityPicker();
@@ -643,12 +685,18 @@
       const res = await fetch(`${API_BASE}/pending`, { cache: 'no-store' });
       const data = await res.json();
       const newPending = {};
+      const newPendingBlanks = {};
       (data.pending || []).forEach(play => {
-        play.positions.forEach(([r, c, letter]) => {
-          newPending[`${r},${c}`] = letter;
+        play.positions.forEach(([r, c, letter], i) => {
+          const key = `${r},${c}`;
+          newPending[key] = letter;
+          if (play.blanks && play.blanks.includes(i)) {
+            newPendingBlanks[key] = true;
+          }
         });
       });
       pendingBoard = newPending;
+      pendingBlanks = newPendingBlanks;
       renderBoard();
     } catch (err) {
       console.warn("Could not fetch pending plays:", err.message);
@@ -671,16 +719,25 @@
     else return { error: "Tiles must all be in a single row or column." };
 
     let letters = '';
+    let blanks = [];
     let row, col;
+
+    function resolveCell (key, idx) {
+      if (localBoard[key] === "?") {
+        blanks.push(idx);
+        return blankDisplay[key] || "?";
+      }
+      return localBoard[key] || confirmedBoard[key] || pendingBoard [key];
+    }
 
     if (direction === 'across') {
       row = [...rows][0];
       const colValues = coords.map(([, c]) => c).sort((a, b) => a - b);
       col = colValues[0];
       const maxCol = colValues[colValues.length - 1];
-      for (let c = col; c <= maxCol; c++) {
+      for (let c = col, idx = 0; c <= maxCol; c++, idx++) {
         const key = `${row},${c}`;
-        const letter = localBoard[key] || confirmedBoard[key];
+        const letter = resolveCell(key, idx);
         if (!letter) return { error: `Gap in your word at column ${c} — tiles must be contiguous.` };
         letters += letter;
       }
@@ -689,15 +746,15 @@
       const rowValues = coords.map(([r]) => r).sort((a, b) => a - b);
       row = rowValues[0];
       const maxRow = rowValues[rowValues.length - 1];
-      for (let r = row; r <= maxRow; r++) {
+      for (let r = row, idx = 0; r <= maxRow; r++, idx++) {
         const key = `${r},${col}`;
-        const letter = localBoard[key] || confirmedBoard[key];
+        const letter = resolveCell (key, idx);
         if (!letter) return { error: `Gap in your word at row ${r} — tiles must be contiguous.` };
         letters += letter;
       }
     }
 
-    return { row, col, direction, letters };
+    return { row, col, direction, letters, blanks };
   }
 
   function pollAll() {
@@ -734,6 +791,7 @@
           row: submission.row,
           col: submission.col,
           direction: submission.direction,
+          blanks: submission.blanks,
         }),
       });
       const data = await res.json();
@@ -745,6 +803,7 @@
 
       statusEl.textContent = `✅ Played ${submission.letters} — pending challenge resolution.`;
       localBoard = {};
+      blankDisplay = {};
       renderBoard();
       pollAll();
     } catch (err) {

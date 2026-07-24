@@ -137,6 +137,7 @@ async def rack(interaction: discord.Interaction):
     row="Row on the board, 0-14 (0 is the top row)",
     col="Column on the board, 0-14 (0 is the left column)",
     direction="Is the word going across or down?",
+    blanks="Optional: 0-based positions using a blank tile, e.g. '2' or '1,3'",
 )
 @app_commands.choices(
     direction=[
@@ -150,13 +151,16 @@ async def play(
     row: int,
     col: int,
     direction: app_commands.Choice[str],
+    blanks: str = "",
 ):
     try:
         game = get_current_game()  # ← always start from the latest saved state
         acting_id = str(interaction.user.id)
         before = set(game.pending_plays.keys()) - {acting_id}
+    
+        blank_indices = [int(x.strip()) for x in blanks.split(",") if x.strip()] if blanks else []
 
-        game.play_tiles(acting_id, letters, row, col, direction.value)
+        game.play_tiles(acting_id, letters, row, col, direction.value, blanks = blank_indices)
         save_game(game)
         restart_keepalive()
 
