@@ -298,6 +298,45 @@
     min-width: 140px;
   }
 
+  .pending-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 4px;
+    font-size: 11px;
+    color: var(--ui-text);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .pending-row:last-child {
+    border-bottom: none;
+  }
+
+  .accept-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: none;
+    background: var(--dl);
+    color: rgba(20,50,50,0.85);
+    cursor: pointer;
+  }
+
+  .challenge-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: none;
+    background: var(--tw);
+    color: #fff;
+    cursor: pointer;
+  }
+
   .player-row {
     display: flex;
     justify-content: space-between;
@@ -388,6 +427,8 @@
     <div class="sidebar-panel">
       <div class="rack-label">Players</div>
       <div id="players-list"></div>
+      <div class="rack-label" style="margin-top:12px">Pending Plays</div>
+      <div id="pending-list"></div>
     </div>
   </div>
 
@@ -784,6 +825,52 @@
       renderBoard();
     } catch (err) {
       console.warn("Could not fetch pending plays:", err.message);
+    }
+  }
+
+  function renderPendingList(pendingPlays) {
+    const listEl = document.getElementById('pending-list');
+    const myId = localStorage.getItem(IDENTITY_KEY);
+
+    if (pendingPlays.length === 0) {
+      listEl.innerHTML = `<span class="hint">Nothing pending.</span>`;
+      return;
+    }
+
+    listEl.innerHTML = pendingPlays.map(play => {
+      const isMine = play.player_id === myId;
+      return `
+        <div class="pending-row">
+          <span>${play.player_name}: <strong>${play.letters}</strong></span>
+          ${isMine ? '' : `
+            <div style="display:flex; gap:4px;">
+              <button class="accept-btn" onclick="resolvePlay('${play.player_id}', 'fail')">Accept</button>
+              <button class="challenge-btn" onclick="resolvePlay('${play.player_id}', 'success')">Challenge</button>
+            </div>
+          `}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function resolvePlay(targetPlayerId, result) {
+    const label = result === 'fail' ? 'accept this play (it stands)' : 'challenge this play (tiles get returned)';
+    if (!confirm(`Are you sure you want to ${label}?`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/challenge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: targetPlayerId, result }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Could not resolve: ${data.error || 'unknown error'}`);
+        return;
+      }
+      pollAll();
+    } catch (err) {
+      alert("Could not reach the API.");
     }
   }
 
