@@ -460,6 +460,9 @@
       <input type="text" id="joinNameInput" placeholder="Your name" maxlength="20">
       <button id="joinBtn">Join as new player</button>
     </div>
+    <div class="controls" style="margin-top:8px">
+      <button class="secondary" id="restartBtn">Restart game</button>
+    </div>
   </div>
 
   <div class="rack-panel">
@@ -723,6 +726,38 @@
 
   const IDENTITY_KEY = "scrabble_player_id";
 
+  async function restartGame() {
+    if (!confirm("This will end the current game and clear all players. Continue?")) return;
+
+    const typed = prompt('Type "RESTART" to confirm — this cannot be undone.');
+    if (typed !== "RESTART") {
+      if (typed !== null) alert("Didn't match — game was not restarted.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/newgame`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Could not restart the game.');
+        return;
+      }
+
+      clearIdentity();
+      localBoard = {};
+      blankDisplay = {};
+      rack = [];
+      renderBoard();
+      renderRack();
+      pollAll();
+    } catch (err) {
+      alert("Could not reach the API.");
+    }
+  }
+
+  document.getElementById('restartBtn').addEventListener('click', restartGame);
+
   async function joinAsNewPlayer() {
     const input = document.getElementById('joinNameInput');
     const name = input.value.trim();
@@ -893,6 +928,7 @@
       pendingBoard = newPending;
       pendingBlanks = newPendingBlanks;
       renderBoard();
+      renderPendingList(data.pending || []);
     } catch (err) {
       console.warn("Could not fetch pending plays:", err.message);
     }
