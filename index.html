@@ -313,6 +313,18 @@
     border-bottom: none;
   }
 
+  .activity-entry {
+    font-size: 10px;
+    color: var(--ui-muted);
+    padding: 4px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    line-height: 1.4;
+  }
+
+  .activity-entry:last-child {
+    border-bottom: none;
+  }
+
   .accept-btn {
     font-family: 'Inter', sans-serif;
     font-size: 10px;
@@ -429,6 +441,8 @@
       <div id="players-list"></div>
       <div class="rack-label" style="margin-top:12px">Pending Plays</div>
       <div id="pending-list"></div>
+      <div class="rack-label" style="margin-top:12px">Activity</div>
+      <div id="activity-log"></div>
     </div>
   </div>
 
@@ -442,6 +456,10 @@
   <div class="rack-panel" id="identity-panel">
     <div class="rack-label">Who are you?</div>
     <div id="identity-picker"></div>
+    <div class="controls" style="margin-top:8px">
+      <input type="text" id="joinNameInput" placeholder="Your name" maxlength="20">
+      <button id="joinBtn">Join as new player</button>
+    </div>
   </div>
 
   <div class="rack-panel">
@@ -705,6 +723,37 @@
 
   const IDENTITY_KEY = "scrabble_player_id";
 
+  async function joinAsNewPlayer() {
+    const input = document.getElementById('joinNameInput');
+    const name = input.value.trim();
+    if (!name) return;
+
+    const newId = (crypto.randomUUID ? crypto.randomUUID() : `web-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+    try {
+      const res = await fetch(`${API_BASE}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: newId, name }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Could not join.');
+        return;
+      }
+
+      localStorage.setItem(IDENTITY_KEY, newId);
+      localStorage.setItem(IDENTITY_KEY + "_name", name);
+      input.value = '';
+      loadIdentityPicker();
+    } catch (err) {
+      alert('Could not reach the API.');
+    }
+  }
+
+  document.getElementById('joinBtn').addEventListener('click', joinAsNewPlayer);
+
   async function loadIdentityPicker() {
     const savedId = localStorage.getItem(IDENTITY_KEY);
     const savedName = localStorage.getItem(IDENTITY_KEY + "_name");
@@ -778,6 +827,27 @@
       `).join('');
     } catch (err) {
       console.warn("Could not fetch players list:", err.message);
+    }
+  }
+
+  async function fetchActivityLog() {
+    try {
+      const res = await fetch(`${API_BASE}/history`, { cache: 'no-store' });
+      const data = await res.json();
+      const listEl = document.getElementById('activity-log');
+      const entries = data.history || [];
+
+      if (entries.length === 0) {
+        listEl.innerHTML = `<span class="hint">No activity yet.</span>`;
+        return;
+      }
+
+      // Show most recent first.
+      listEl.innerHTML = entries.slice().reverse()
+        .map(entry => `<div class="activity-entry">${entry}</div>`)
+        .join('');
+    } catch (err) {
+      console.warn("Could not fetch activity log:", err.message);
     }
   }
 
@@ -932,6 +1002,7 @@
     fetchConfirmedBoard();
     fetchAllPending();
     fetchPlayersList();
+    fetchActivityLog();
     const savedId = localStorage.getItem(IDENTITY_KEY);
     if (savedId) {
       fetchMyRack(savedId);

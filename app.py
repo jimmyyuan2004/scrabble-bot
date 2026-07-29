@@ -37,6 +37,10 @@ def status():
         "bag_remaining": len(game.bag),
     })
 
+@app.route("/history", methods=["GET"])
+def history():
+    game = get_game()
+    return jsonify({"history": game.history[-15:]})  # last 15 events, most recent last
 
 @app.route("/rack/<player_id>", methods=["GET"])
 def rack(player_id):
