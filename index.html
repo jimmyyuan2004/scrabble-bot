@@ -233,6 +233,18 @@
     letter-spacing: 0.08em;
   }
 
+  .rack-label.collapsible {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #activity-log.collapsed {
+    display: none;
+  }
+
   .rack-tiles {
     display: flex;
     gap: 6px;
@@ -441,7 +453,7 @@
       <div id="players-list"></div>
       <div class="rack-label" style="margin-top:12px">Pending Plays</div>
       <div id="pending-list"></div>
-      <div class="rack-label" style="margin-top:12px">Activity</div>
+      <div class="rack-label collapsible" id="activity-toggle" style="margin-top:12px">Activity <span id="activity-arrow">▾</span></div>
       <div id="activity-log"></div>
     </div>
   </div>
@@ -561,6 +573,24 @@
 
   const boardEl = document.getElementById('board');
   const rackEl = document.getElementById('rack');
+
+  const ACTIVITY_COLLAPSED_KEY = "scrabble_activity_collapsed";
+
+  function setActivityCollapsed(collapsed) {
+    const logEl = document.getElementById('activity-log');
+    const arrowEl = document.getElementById('activity-arrow');
+    logEl.classList.toggle('collapsed', collapsed);
+    arrowEl.textContent = collapsed ? '▸' : '▾';
+    localStorage.setItem(ACTIVITY_COLLAPSED_KEY, collapsed ? '1' : '0');
+  }
+
+  document.getElementById('activity-toggle').addEventListener('click', () => {
+    const isCollapsed = document.getElementById('activity-log').classList.contains('collapsed');
+    setActivityCollapsed(!isCollapsed);
+  });
+
+  // Restore whatever state the user last left it in.
+  setActivityCollapsed(localStorage.getItem(ACTIVITY_COLLAPSED_KEY) === '1');
 
   async function fetchConfirmedBoard() {
     try {
