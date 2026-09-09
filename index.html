@@ -478,6 +478,14 @@
   </div>
 
   <div class="rack-panel">
+    <div class="rack-label">Game Controls</div>
+    <div class="controls">
+      <button id="startGameBtn">Start Game</button>
+      <button class="secondary" id="endGameBtn">End Game</button>
+    </div>
+  </div>
+
+  <div class="rack-panel">
     <div class="rack-label">Your Rack</div>
     <div class="rack-tiles" id="rack"></div>
     <div class="controls">
@@ -788,6 +796,54 @@
 
   document.getElementById('restartBtn').addEventListener('click', restartGame);
 
+  async function startGame() {
+    try {
+      const res = await fetch(`${API_BASE}/start`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Could not start the game.');
+        return;
+      }
+
+      pollAll();
+    } catch (err) {
+      alert("Could not reach the API.");
+    }
+  }
+
+  async function endGame() {
+    if (!confirm("This will end the current game for everyone. Are you sure?")) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/end`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Could not end the game.');
+        return;
+      }
+
+      const summaryLines = Object.entries(data.summary || {})
+        .map(([name, rack]) => `${name}: ${rack}`)
+        .join('\n');
+      alert(`Game ended.\n\nFinal racks:\n${summaryLines}`);
+
+      clearIdentity();
+      localBoard = {};
+      blankDisplay = {};
+      rack = [];
+      renderBoard();
+      renderRack();
+      pollAll();
+    } catch (err) {
+      alert("Could not reach the API.");
+    }
+  }
+
+  document.getElementById('startGameBtn').addEventListener('click', startGame);
+  document.getElementById('endGameBtn').addEventListener('click', endGame);
+    
   async function joinAsNewPlayer() {
     const input = document.getElementById('joinNameInput');
     const name = input.value.trim();
