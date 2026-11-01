@@ -159,6 +159,17 @@ def newgame():
     save_game(game)
     return jsonify({"ok": True, "message": "New game created."})
 
+@app.route("/end", methods=["POST"])
+def end():
+    game = get_game()
+    try:
+        game.end_game()
+        summary = {p.name: p.rack_display() for p in game.players.values()}
+        save_game(Game())
+        return jsonify({"ok": True, "summary": summary})
+    except ScrabbleError as e:
+        return jsonify({"error": str(e)}), 400
+
 @app.route("/exchange", methods=["POST"])
 def exchange():
     data = request.get_json()
