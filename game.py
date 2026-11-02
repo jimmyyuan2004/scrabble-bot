@@ -25,6 +25,7 @@ from tiles import create_tile_bag, draw_tiles
 
 
 MAX_PLAYERS = 14  # 100 tiles only stretches to 14 full racks
+CHALLENGE_PAUSE_SECONDS = 120  # stops a challenge being used as free thinking time
 
 DEFAULT_SETTINGS = {
     "time_mode": "none",           # "none", "per_turn" or "total"
@@ -110,7 +111,8 @@ class Game:
         self.time_banks: Dict[str, float] = {}
         self.forfeited: List[str] = []
         self.skip_next: List[str] = []  # players who lose their next turn
-        # {"player_id": whose play, "challenger_id": who challenged it}
+        # {"player_id": whose play, "challenger_id": who challenged it,
+        #  "started_at": when}
         self.challenge: Optional[dict] = None
         self.winner: Optional[str] = None
         self.pending_since: Optional[float] = None  # when the pending play was made
@@ -305,8 +307,19 @@ class Game:
         left = self.challenge_seconds_left()
         return left is not None and left <= 0
 
+    def _challenge_pause_over(self) -> bool:
+        if self.challenge is None or self.clock_running():
+            return False
+        if self.settings["time_mode"] == "none":
+            return False
+        return time.time() - self.challenge["started_at"] >= CHALLENGE_PAUSE_SECONDS
+
     def clock_expired(self) -> bool:
-        return self._challenge_window_closed() or self._turn_expired()
+        return (
+            self._challenge_window_closed()
+            or self._challenge_pause_over()
+            or self._turn_expired()
+        )
 
     def _turn_expired(self) -> bool:
         current = self.current_player_id()
@@ -327,8 +340,14 @@ class Game:
         if self._challenge_window_closed():
             self.auto_confirm_others(None)
             return True
+        if self._challenge_pause_over():
+            self._resume_clock()
+            self.history.append("The challenge pause ended, so clocks are running again.")
+            return True
         current = self.current_player_id()
         name = self.players[current].name
+        # A challenge still open when time runs out is dropped, and the play stands.
+        self.challenge = None
         self.auto_confirm_others(current)
         if self.settings["time_mode"] == "per_turn":
             self.history.append(f"{name} ran out of time and lost the turn.")
@@ -501,10 +520,14 @@ class Game:
 
     def start_challenge(self, actor_id: str) -> None:
         """Pause all clocks while the players check the word, like neutralising
-        the timer in a tournament game."""
+        the timer in a tournament game. The pause is capped in timed games."""
         self._require_in_play()
         player_id = self._pending_player_id(actor_id)
-        self.challenge = {"player_id": player_id, "challenger_id": actor_id}
+        self.challenge = {
+            "player_id": player_id,
+            "challenger_id": actor_id,
+            "started_at": time.time(),
+        }
         self._pause_clock()
         self.history.append(
             f"{self.players[actor_id].name} challenged "
@@ -523,7 +546,8 @@ class Game:
         challenger_id = self.challenge["challenger_id"]
         player = self.players[player_id]
         self.challenge = None
-        self._resume_clock()
+        if not self.clock_running():
+            self._resume_clock()
 
         if not valid:
             pending = self._pop_pending(player_id)

@@ -55,7 +55,7 @@ The free plan also sleeps when idle, so the first request can take about a minut
 2. Once at least 2 players are in, anyone presses **Start Game**. Each player is dealt 7 tiles and the turn order is shuffled.
 3. On your turn, click a rack tile, click a square, then press **Submit Play**. Tiles leave your rack, the play is marked pending, and the next player's turn starts. You can also **Exchange** or **Pass**, which use your turn.
 4. The pending play is then resolved in one of two ways:
-   - **Challenge:** any other player challenges. All clocks pause while the group checks the word, then someone presses **Word is valid** or **Not a word**. The game doesn't check words itself.
+   - **Challenge:** any other player challenges. All clocks pause for up to 2 minutes while the group checks the word, then someone presses **Word is valid** or **Not a word**. The game doesn't check words itself.
    - **The next player takes their turn or runs out of time:** the play stands, the player draws replacements, and it can no longer be challenged.
 
 If the word is rejected, the tiles go back and that player has lost their turn. If it's valid, the challenger pays the penalty set for the game.
@@ -69,14 +69,18 @@ Press **?** in the top bar at any time for the full controls.
 | Setting | Options |
 | --- | --- |
 | Time control | **No limit**, **Per turn** or **Total time** |
-| If a challenge fails | **No penalty** or **Lose a turn** |
+| If a challenge fails | **Single** or **Double** |
 | Time to challenge | **Next turn** (default), **15 sec**, **30 sec** or **1 min** |
 | Game ends | **Classic** only. **First to a score** is reserved for when scoring is added |
 
 - **Per turn:** running out of time loses that turn.
 - **Total time:** each player has their own clock, which runs only on their turn. Past zero, they lose points per minute or part of a minute (default 10). Going too far over forfeits (default 10 minutes), and the rest play on. The last player left wins.
 - **No limit:** other players can **Skip** someone who is away.
+- **Single challenge:** no penalty if the word turns out to be valid.
+- **Double challenge:** if the word is valid, the challenger loses a turn. If they aren't next in line, they miss their next turn.
 - **Time to challenge:** once it runs out, the play stands and the player draws new tiles, so they aren't left waiting on a slow turn. The next player taking their turn also ends it early. It runs alongside the next player's clock.
+
+The challenge pause stops at 2 minutes so it can't be used as free thinking time. Clocks then run again, and if the next player's turn time runs out before a result is entered, the play stands.
 
 The clock defaults follow WESPA tournament rules: 25 minutes each, 10 points per minute over, and forfeit at 10 minutes over. Scores aren't tracked yet, so penalties are shown next to the player's name for the group to apply.
 
@@ -112,6 +116,6 @@ Rows and columns run 0-14 from the top left. `direction` is `across` or `down`. 
 - **One browser per player:** your token is stored in the browser you joined from, so you can't continue on another device.
 - **Rules that are not enforced:** first play covering the center, and plays connecting to existing tiles.
 - **No scoring** and no end-of-game detection, so time penalties aren't deducted from anything yet.
-- **Challenges run on trust:** whoever presses the result button decides it, and a paused game stays paused until someone does.
+- **Challenges run on trust:** whoever presses the result button decides it.
 - **Extending a word:** only the tiles you placed are recorded, so adding an S shows as "S" in the activity log. The board is still correct.
 - **Old games are not cleaned up:** a game stays in the database until someone ends it.

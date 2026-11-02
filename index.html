@@ -41,6 +41,9 @@
 
   button, input { font-family: inherit; }
 
+  /* Stops double-tap zoom swallowing quick taps. Pinch zoom still works. */
+  button, .cell, .tile { touch-action: manipulation; }
+
   button {
     font-size: 13px;
     font-weight: 600;
@@ -537,7 +540,9 @@
     transition: transform 0.08s ease;
   }
 
-  .rack-tile:hover { transform: translateY(-3px); }
+  @media (hover: hover) {
+    .rack-tile:hover { transform: translateY(-3px); }
+  }
 
   .rack-tile.selected {
     outline: 2px solid var(--star);
@@ -577,7 +582,7 @@
     cursor: default;
   }
 
-  .spectator-tiles .rack-tile:hover { transform: none; }
+  .spectator-tiles .rack-tile { transform: none !important; }
 
   .play-controls {
     display: flex;
@@ -746,11 +751,59 @@
   .help-section ul { padding-left: 18px; }
   .help-section a { color: var(--star); }
 
+  /* --- Phones and tablets --- */
+
   @media (max-width: 900px) {
-    :root { --cell: clamp(16px, calc((100vw - 76px) / 15), 38px); }
-    .game-layout { grid-template-columns: minmax(0, auto); }
-    main { padding: 16px 8px 32px; }
-    .topbar { padding: 10px 12px; }
+    main { padding: 12px 8px 32px; }
+    .topbar { padding: 8px 12px; }
+
+    /* iOS zooms the page when focusing an input smaller than 16px. */
+    input { font-size: 16px; }
+
+    /* Comfortable touch targets. */
+    .segmented button, .chips button, .pending-actions button { min-height: 40px; }
+    .play-controls button { min-height: 42px; padding: 8px 12px; }
+    .spectate-link { padding: 10px 6px; }
+    .text-link { padding: 8px 0; }
+    .activity-toggle { padding: 8px 0; }
+    .brand { padding: 6px 0; }
+    .icon-btn { width: 40px; height: 40px; }
+    .menu button { padding: 12px 14px; }
+
+    /* One column, with what you need mid-turn right by the board. */
+    .game-layout { grid-template-columns: minmax(0, auto); gap: 10px; }
+    .play-column, .sidebar { display: contents; }
+    .turn-bar { order: 1; }
+    .board-frame { order: 2; }
+    #pendingPanel { order: 3; }
+    #playerPanel, #spectatorPanel { order: 4; }
+    .sidebar .panel { order: 5; }
+    #pendingPanel.is-empty { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    :root { --cell: calc((100vw - 36px) / 15); }
+    html { scrollbar-width: none; }
+    main { padding: 8px 4px 32px; }
+    .board-frame { padding: 6px; }
+    .board { gap: 1px; }
+    .rack-tile { width: 42px; height: 42px; }
+    .play-controls { display: grid; grid-template-columns: repeat(2, 1fr); width: 100%; }
+    #submitPlayBtn { grid-column: 1 / -1; }
+  }
+
+  /* Phones held sideways: board on the left, everything else on the right. */
+  @media (max-height: 500px) and (orientation: landscape) {
+    :root { --cell: calc((100vh - 36px) / 15); }
+    .topbar { position: static; }
+    main { padding: 8px; }
+    .board-frame { padding: 6px; }
+    .board { gap: 1px; }
+    .game-layout { grid-template-columns: auto minmax(0, 340px); gap: 10px; }
+    .game-layout > .play-column > *, .game-layout > .sidebar > * { grid-column: 2; }
+    .game-layout > .play-column > .board-frame { grid-column: 1; grid-row: 1 / span 20; }
+    .legend { display: none; }
+    .rack-tile { width: 36px; height: 36px; }
   }
 </style>
 </head>
@@ -830,6 +883,7 @@
         <div class="setting">
           <div class="label">If a challenge fails</div>
           <div class="segmented" id="challengeChoice"></div>
+          <div class="hint" id="challengeHint"></div>
         </div>
 
         <div class="setting">
@@ -898,7 +952,7 @@
           <div class="label">Players</div>
           <div id="players-list"></div>
         </div>
-        <div class="panel">
+        <div class="panel" id="pendingPanel">
           <div class="label">Pending plays</div>
           <div id="pending-list"></div>
         </div>
@@ -944,9 +998,9 @@
         <h3>Challenging</h3>
         <ul>
           <li>A submitted play is <strong>pending</strong> and has a dashed outline. The next player's clock starts straight away.</li>
-          <li><strong>Challenge:</strong> all clocks pause while you look the word up. The game doesn't check words, so agree on a dictionary. Then press <strong>Word is valid</strong> or <strong>Not a word</strong>.</li>
+          <li><strong>Challenge:</strong> all clocks pause for up to 2 minutes while you look the word up. The game doesn't check words, so agree on a dictionary. Then press <strong>Word is valid</strong> or <strong>Not a word</strong>.</li>
           <li><strong>Not a word:</strong> the tiles go back and that player has lost their turn.</li>
-          <li><strong>Word is valid:</strong> the play stands. If the game uses "Lose a turn", the challenger misses their next turn.</li>
+          <li><strong>Word is valid:</strong> the play stands. In a double challenge game, the challenger misses their next turn.</li>
           <li>If nobody challenges, the play stands when the next player takes their turn, and that player draws new tiles.</li>
           <li>Some games set a time to challenge, shown under the pending play. When it runs out, the play stands and the new tiles are drawn.</li>
         </ul>
@@ -1064,8 +1118,8 @@
     { value: 'total', label: 'Total time' },
   ];
   const CHALLENGE_RULES = [
-    { value: 'free', label: 'No penalty' },
-    { value: 'lose_turn', label: 'Lose a turn' },
+    { value: 'free', label: 'Single' },
+    { value: 'lose_turn', label: 'Double' },
   ];
   const CHALLENGE_TIMES = [
     { value: 0, label: 'Next turn' },
@@ -1470,7 +1524,7 @@
       per_turn: `${describeTime(settings.turn_seconds)} per turn`,
       total: `${describeTime(settings.total_seconds)} each, then -${settings.overtime_penalty} per minute, forfeit at ${settings.overtime_limit_minutes} min over`,
     }[settings.time_mode];
-    const challenge = settings.challenge_rule === 'lose_turn' ? 'Failed challenge loses a turn' : 'No penalty for a failed challenge';
+    const challenge = settings.challenge_rule === 'lose_turn' ? 'Double challenge' : 'Single challenge';
     const window = settings.challenge_seconds ? ` ${settings.challenge_seconds} sec to challenge.` : '';
     return `${time}. ${challenge}.${window}`;
   }
@@ -1589,6 +1643,7 @@
 
   function renderPendingList() {
     const listEl = $('pending-list');
+    $('pendingPanel').classList.toggle('is-empty', gameState.pending.length === 0);
     if (gameState.pending.length === 0) {
       listEl.replaceChildren(el('span', 'hint', 'Nothing pending.'));
       return;
@@ -1606,7 +1661,11 @@
 
       if (gameState.challenge) {
         const challenger = gameState.players.find(p => p.player_id === gameState.challenge.challenger_id);
-        row.append(el('div', 'hint', `${challenger.name} challenged. Clocks are paused while you check the word.`));
+        const timed = gameState.settings.time_mode !== 'none';
+        const note = !timed ? 'Check the word, then choose a result.'
+          : gameState.clock_running ? 'The pause is over, so clocks are running again.'
+          : 'Clocks are paused for up to 2 minutes while you check the word.';
+        row.append(el('div', 'hint', `${challenger.name} challenged. ${note}`));
       }
 
       if (!spectating && play.player_id !== gameState.me) {
@@ -1857,6 +1916,9 @@
       setup.challengeRule = value;
       renderSetup();
     });
+    $('challengeHint').textContent = setup.challengeRule === 'lose_turn'
+      ? 'Double challenge: if the word is valid, the challenger loses a turn.'
+      : 'Single challenge: no penalty if the word turns out to be valid.';
     renderChoice('challengeTimeChoice', CHALLENGE_TIMES, setup.challengeSeconds, value => {
       setup.challengeSeconds = value;
       renderSetup();
@@ -2065,7 +2127,7 @@
     const penalty = gameState.settings.challenge_rule === 'lose_turn' ? ' If the word is valid, you lose your next turn.' : '';
     const confirmed = await confirmDialog(
       `Challenge ${play.letters}?`,
-      `All clocks pause while you check the word.${penalty}`,
+      `${gameState.settings.time_mode === 'none' ? 'Check the word, then choose a result.' : 'All clocks pause for up to 2 minutes while you check the word.'}${penalty}`,
       'Challenge',
       'danger',
     );
