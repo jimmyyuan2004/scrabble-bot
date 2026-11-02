@@ -10,8 +10,8 @@ Responsible for:
 - Challenges
 - Exchanges
 
-No Discord-specific code lives here — bot.py should import Game/Player
-from this file and call methods on them in response to slash commands.
+No HTTP-specific code lives here — app.py imports Game and calls methods
+on it in response to API requests.
 """
 
 from collections import Counter
@@ -27,9 +27,10 @@ class ScrabbleError(Exception):
 
 
 class Player:
-    def __init__(self, player_id: str, name: str):
+    def __init__(self, player_id: str, name: str, token: str = ""):
         self.player_id = player_id
         self.name = name
+        self.token = token  # secret proving a browser is this player
         self.rack: List[str] = []
 
     def rack_display(self) -> str:
@@ -89,12 +90,12 @@ class Game:
     # Setup / lifecycle
     # ------------------------------------------------------------------
 
-    def add_player(self, player_id: str, name: str) -> Player:
+    def add_player(self, player_id: str, name: str, token: str = "") -> Player:
         if self.started:
             raise ScrabbleError("Cannot join — the game has already started.")
-        if player_id in self.players:
+        if any(p.name.lower() == name.lower() for p in self.players.values()):
             raise ScrabbleError(f"{name} has already joined.")
-        player = Player(player_id, name)
+        player = Player(player_id, name, token)
         self.players[player_id] = player
         self.turn_order.append(player_id)
         return player
@@ -119,12 +120,12 @@ class Game:
     def _require_player(self, player_id: str) -> Player:
         player = self.players.get(player_id)
         if player is None:
-            raise ScrabbleError("You are not in this game. Use /join first.")
+            raise ScrabbleError("That player is not in this game.")
         return player
 
     def _require_started(self) -> None:
         if not self.started:
-            raise ScrabbleError("Game has not started yet. Use /start first.")
+            raise ScrabbleError("Game has not started yet.")
         
     def _compute_positions(self, row: int, col: int, direction: str, letters: str) -> List[tuple]:
         if direction not in ("across", "down"):
@@ -283,8 +284,7 @@ class Game:
 
     def challenge_fail(self, player_id: str) -> None:
         """Challenge failed: play becomes permanent. Marks the player as owed
-        replacement tiles — call draw_replacements() next (or have bot.py
-        auto-call it right after this)."""
+        replacement tiles — call draw_replacements() next."""
         pending = self._pop_pending(player_id)
         self._write_to_board(pending)
         player = self.players[player_id]
@@ -301,8 +301,8 @@ class Game:
     def auto_confirm_others(self, acting_player_id: str) -> List[str]:
         """When `acting_player_id` starts a new play, any pending plays belonging
         to OTHER players are treated as unchallenged and become permanent.
-        Returns the list of player_ids that got auto-confirmed (so bot.py can
-        draw their replacement tiles and notify them).
+        Returns the list of player_ids that got auto-confirmed (so the caller
+        can draw their replacement tiles).
         """
         resolved = []
         for player_id, pending in list(self.pending_plays.items()):

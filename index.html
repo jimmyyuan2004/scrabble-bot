@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Scrabble Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrabble</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -21,43 +22,287 @@
     --ink: #2A1F14;
     --ui-text: #EFE3C8;
     --ui-muted: #B9A97F;
+    --page: #1C140D;
+    --line: rgba(255,255,255,0.08);
+    --cell: clamp(19px, calc((100vw - 76px) / 15), 38px);
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
 
   body {
     margin: 0;
     min-height: 100vh;
-    background: #1C140D;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    padding: 32px 16px;
+    background: var(--page);
+    color: var(--ui-text);
     font-family: 'Inter', sans-serif;
+    font-size: 14px;
   }
 
-  h1 {
+  button, input { font-family: inherit; }
+
+  button {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: var(--star);
+    color: var(--frame-dark);
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--star); outline-offset: 2px; }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  button.secondary {
+    background: transparent;
+    color: var(--ui-text);
+    border-color: rgba(185,169,127,0.5);
+  }
+
+  button.danger { background: var(--tw); color: #fff; }
+
+  input {
+    font-size: 14px;
+    padding: 9px 10px;
+    border-radius: 6px;
+    border: none;
+    background: #fff8ea;
+    color: var(--ink);
+    min-width: 0;
+  }
+
+  /* --- Top bar --- */
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--frame-dark);
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    z-index: 20;
+  }
+
+  .brand {
     font-family: 'Bitter', serif;
     font-weight: 700;
+    font-size: 1.2rem;
     color: var(--ui-text);
-    font-size: 1.4rem;
-    letter-spacing: 0.02em;
-    margin: 0;
+    background: none;
+    padding: 0;
   }
+
+  .room-chip {
+    font-size: 12px;
+    color: var(--ui-muted);
+    letter-spacing: 0.04em;
+  }
+
+  .room-chip strong { color: var(--star); letter-spacing: 0.12em; }
+
+  .topbar-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    position: relative;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    font-size: 16px;
+  }
+
+  .menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 170px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--frame);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+  }
+
+  .menu button {
+    background: none;
+    color: var(--ui-text);
+    text-align: left;
+    font-weight: 500;
+  }
+
+  .menu button:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+  .menu button.danger { color: #E9A08F; }
+
+  .wake-banner {
+    padding: 8px 20px;
+    text-align: center;
+    font-size: 13px;
+    background: var(--tl);
+    color: #fff;
+  }
+
+  /* --- Shared panels --- */
+
+  main { padding: 24px 16px 40px; }
+
+  .panel {
+    background: linear-gradient(160deg, var(--frame), var(--frame-dark));
+    padding: 18px;
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .label {
+    color: var(--ui-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 8px;
+  }
+
+  .hint {
+    color: var(--ui-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .message {
+    min-height: 18px;
+    color: var(--ui-text);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  /* --- Home and lobby --- */
+
+  .narrow {
+    max-width: 420px;
+    margin: 6vh auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .hero { text-align: center; }
+
+  .hero h1 {
+    font-family: 'Bitter', serif;
+    font-size: 2.2rem;
+    margin: 0 0 6px;
+  }
+
+  .hero-tiles {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 18px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field input { width: 100%; }
+
+  .home-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .home-actions button { width: 100%; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ui-muted);
+    font-size: 12px;
+  }
+
+  .divider::before, .divider::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid var(--line);
+  }
+
+  .join-row { display: flex; gap: 8px; }
+
+  .join-row input {
+    flex: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .home-actions .join-row button { width: auto; white-space: nowrap; }
+
+  .resume-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .resume-row:last-child { border-bottom: none; }
+
+  .lobby-code {
+    font-family: 'Bitter', serif;
+    font-size: 2.6rem;
+    letter-spacing: 0.18em;
+    color: var(--star);
+    text-align: center;
+    margin: 4px 0 12px;
+  }
+
+  .lobby-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  /* --- Game layout --- */
+
+  .game-layout {
+    display: grid;
+    grid-template-columns: auto 260px;
+    gap: 20px;
+    justify-content: center;
+    align-items: start;
+  }
+
+  .play-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .sidebar { display: flex; flex-direction: column; gap: 14px; }
+  .sidebar .panel { padding: 14px 16px; }
 
   .board-frame {
     background: linear-gradient(160deg, var(--frame), var(--frame-dark));
-    padding: 16px;
+    padding: 12px;
     border-radius: 10px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
   }
 
   .board {
     display: grid;
-    grid-template-columns: repeat(15, minmax(0, 32px));
-    grid-template-rows: repeat(15, minmax(0, 32px));
+    grid-template-columns: repeat(15, var(--cell));
+    grid-template-rows: repeat(15, var(--cell));
     gap: 2px;
     background: var(--grid-line);
     border-radius: 4px;
@@ -70,7 +315,7 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    font-size: 9px;
+    font-size: calc(var(--cell) * 0.26);
     color: rgba(42, 31, 20, 0.55);
     font-weight: 600;
     letter-spacing: 0.02em;
@@ -80,22 +325,19 @@
   .cell.dw { background: var(--dw); color: rgba(60,30,20,0.6); }
   .cell.tl { background: var(--tl); color: rgba(255,255,255,0.8); }
   .cell.dl { background: var(--dl); color: rgba(20,50,50,0.55); }
-  .cell.center {
-    background: var(--dw);
-  }
+  .cell.center { background: var(--dw); }
   .cell.center::after {
     content: "★";
     color: var(--star);
-    font-size: 15px;
+    font-size: calc(var(--cell) * 0.46);
   }
   .cell.tw::before, .cell.dw::before, .cell.tl::before, .cell.dl::before {
     content: attr(data-label);
   }
-  .cell.center::before { content: none; }
 
   .tile {
     position: absolute;
-    inset: 2px;
+    inset: 1px;
     background: var(--tile);
     border-radius: 3px;
     box-shadow:
@@ -107,7 +349,7 @@
     justify-content: center;
     font-family: 'Bitter', serif;
     font-weight: 700;
-    font-size: 16px;
+    font-size: calc(var(--cell) * 0.5);
     color: var(--ink);
     z-index: 2;
   }
@@ -117,27 +359,9 @@
     bottom: 1px;
     right: 3px;
     font-family: 'Inter', sans-serif;
-    font-size: 7px;
+    font-size: calc(var(--cell) * 0.21);
     font-weight: 600;
     color: rgba(42,31,20,0.6);
-  }
-
-  .tile .bonus-badge {
-    position: absolute;
-    top: -3px;
-    left: -3px;
-    width: 13px;
-    height: 13px;
-    border-radius: 3px;
-    font-family: 'Inter', sans-serif;
-    font-size: 6px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255,255,255,0.9);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
-    z-index: 3;
   }
 
   .tile .blank-marker {
@@ -145,23 +369,153 @@
     bottom: 1px;
     left: 3px;
     font-family: 'Inter', sans-serif;
-    font-size: 8px;
+    font-size: calc(var(--cell) * 0.24);
     font-style: italic;
     color: rgba(42,31,20,0.45);
   }
 
-  .bonus-badge.tw { background: var(--tw); }
-  .bonus-badge.dw { background: var(--dw); color: rgba(60,30,20,0.75); }
-  .bonus-badge.tl { background: var(--tl); }
-  .bonus-badge.dl { background: var(--dl); color: rgba(20,50,50,0.75); }
-  .bonus-badge.center { background: var(--star); color: rgba(60,30,20,0.75); }
+  .cell.empty-target { cursor: pointer; }
+  .cell.empty-target:hover {
+    outline: 2px solid rgba(201, 162, 39, 0.7);
+    outline-offset: -2px;
+  }
+
+  .tile.placed {
+    cursor: pointer;
+    background: #FFF6DC;
+    outline: 2px solid var(--tl);
+    outline-offset: -2px;
+  }
+
+  .tile.pending { opacity: 0.72; outline: 2px dashed var(--star); outline-offset: -2px; }
+
+  .rack-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .rack-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    min-height: 42px;
+  }
+
+  .rack-tile {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: var(--tile);
+    border-radius: 4px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 -2px 3px var(--tile-shadow) inset,
+      0 2px 4px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-family: 'Bitter', serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 0.08s ease;
+  }
+
+  .rack-tile:hover { transform: translateY(-3px); }
+
+  .rack-tile.selected {
+    outline: 2px solid var(--star);
+    transform: translateY(-4px);
+  }
+
+  .rack-tile .points {
+    position: absolute;
+    bottom: 2px;
+    right: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 8px;
+    font-weight: 600;
+    color: rgba(42,31,20,0.6);
+  }
+
+  .play-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .player-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .player-row:last-child { border-bottom: none; }
+  .player-row.is-you { color: var(--star); font-weight: 600; }
+
+  .pending-row {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .pending-row:last-child { border-bottom: none; }
+
+  .pending-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .pending-actions button { flex: 1; padding: 5px 8px; font-size: 12px; }
+  .accept-btn { background: var(--dl); color: rgba(20,50,50,0.9); }
+
+  .bag-count {
+    font-family: 'Bitter', serif;
+    font-size: 1.4rem;
+    color: var(--ui-text);
+  }
+
+  .activity-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0;
+    background: none;
+    color: var(--ui-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  #activity-log { margin-top: 8px; max-height: 220px; overflow-y: auto; }
+
+  .activity-entry {
+    font-size: 11px;
+    color: var(--ui-muted);
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .activity-entry:last-child { border-bottom: none; }
 
   .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 14px;
-    justify-content: center;
-    max-width: 480px;
+    gap: 8px 12px;
   }
 
   .legend-item {
@@ -184,315 +538,230 @@
   .swatch.tl { background: var(--tl); }
   .swatch.dl { background: var(--dl); }
 
-  .cell.empty-target {
-    cursor: pointer;
-  }
-  .cell.empty-target:hover {
-    outline: 2px solid rgba(201, 162, 39, 0.7);
-    outline-offset: -2px;
-  }
+  /* --- Dialogs and help --- */
 
-  .tile.placed {
-    cursor: pointer;
-  }
-
-  .tile.confirmed {
-    cursor: default;
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.6) inset,
-      0 -2px 3px var(--tile-shadow) inset,
-      0 2px 3px rgba(0,0,0,0.3),
-      0 0 0 2px var(--star);
-  }
-
-  .tile.pending {
-    cursor: default;
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.6) inset,
-      0 -2px 3px var(--tile-shadow) inset,
-      0 2px 3px rgba(0,0,0,0.3),
-      0 0 0 2px rgba(201, 162, 39, 0.5);
-    opacity: 0.75;
-  }
-
-  .rack-panel {
-    background: linear-gradient(160deg, var(--frame), var(--frame-dark));
-    padding: 14px 18px;
-    border-radius: 10px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .rack-label {
-    color: var(--ui-muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  .rack-label.collapsible {
-    cursor: pointer;
-    user-select: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  #activity-log.collapsed {
-    display: none;
-  }
-
-  .rack-tiles {
-    display: flex;
-    gap: 6px;
-    min-height: 40px;
-  }
-
-  .rack-tile {
-    width: 34px;
-    height: 34px;
-    background: var(--tile);
-    border-radius: 4px;
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.6) inset,
-      0 -2px 3px var(--tile-shadow) inset,
-      0 2px 4px rgba(0,0,0,0.4);
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    font-family: 'Bitter', serif;
-    font-weight: 700;
-    font-size: 17px;
-    color: var(--ink);
-    cursor: pointer;
-    transition: transform 0.08s ease;
+    padding: 16px;
+    background: rgba(10,6,3,0.7);
   }
 
-  .rack-tile:hover {
-    transform: translateY(-3px);
-  }
-
-  .rack-tile.selected {
-    outline: 2px solid var(--star);
-    transform: translateY(-4px);
-  }
-
-  .rack-tile .points {
-    position: absolute;
-    bottom: 1px;
-    right: 3px;
-    font-family: 'Inter', sans-serif;
-    font-size: 7px;
-    font-weight: 600;
-    color: rgba(42,31,20,0.6);
-  }
-
-  .board-wrapper {
-    position: relative;
-  }
-
-  .sidebar-panel {
-    position: absolute;
-    left: calc(100% + 48px);
-    top: 0;
-    width: 140px;
-  }
-
-  .sidebar-panel {
-    background: linear-gradient(160deg, var(--frame), var(--frame-dark));
-    padding: 14px 16px;
+  .dialog {
+    width: 100%;
+    max-width: 380px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    padding: 20px;
+    background: var(--frame);
+    border: 1px solid var(--line);
     border-radius: 10px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
-    min-width: 140px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
   }
 
-  .pending-row {
+  .dialog.wide { max-width: 560px; }
+
+  .dialog h2 {
+    font-family: 'Bitter', serif;
+    font-size: 1.2rem;
+    margin: 0 0 10px;
+  }
+
+  .dialog-body { line-height: 1.5; }
+
+  .dialog-buttons {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: flex-end;
     gap: 8px;
-    padding: 7px 4px;
-    font-size: 11px;
-    color: var(--ui-text);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-top: 16px;
   }
 
-  .pending-row:last-child {
-    border-bottom: none;
+  .letter-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
   }
 
-  .activity-entry {
-    font-size: 10px;
-    color: var(--ui-muted);
-    padding: 4px 4px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    line-height: 1.4;
-  }
+  .letter-grid button { padding: 8px 0; font-family: 'Bitter', serif; font-size: 15px; }
 
-  .activity-entry:last-child {
-    border-bottom: none;
-  }
-
-  .accept-btn {
-    font-family: 'Inter', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 4px;
-    border: none;
-    background: var(--dl);
-    color: rgba(20,50,50,0.85);
-    cursor: pointer;
-  }
-
-  .challenge-btn {
-    font-family: 'Inter', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 4px;
-    border: none;
-    background: var(--tw);
-    color: #fff;
-    cursor: pointer;
-  }
-
-  .player-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 4px;
-    font-size: 12px;
-    color: var(--ui-text);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-
-  .player-row:last-child {
-    border-bottom: none;
-  }
-
-  .player-row.is-you {
+  .help-section { margin-bottom: 16px; }
+  .help-section h3 {
+    font-size: 13px;
     color: var(--star);
-    font-weight: 600;
+    margin: 0 0 4px;
   }
+  .help-section p, .help-section ul { margin: 0; line-height: 1.55; color: var(--ui-text); }
+  .help-section ul { padding-left: 18px; }
 
-  .player-score {
-    color: var(--ui-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .controls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .controls input {
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    padding: 6px 8px;
-    border-radius: 4px;
-    border: none;
-    width: 140px;
-    background: #fff8ea;
-    color: var(--ink);
-  }
-
-  .controls button {
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 4px;
-    border: none;
-    background: var(--star);
-    color: #2A1D14;
-    cursor: pointer;
-  }
-
-  .controls button.secondary {
-    background: transparent;
-    color: var(--ui-muted);
-    border: 1px solid var(--ui-muted);
-  }
-
-  .hint {
-    color: var(--ui-muted);
-    font-size: 11px;
-    text-align: center;
-    max-width: 340px;
-  }
-
-  @media (max-width: 700px) {
-    .sidebar-panel {
-      position: static;
-      width: 100%;
-      max-width: 320px;
-      margin: 16px auto 0;
-      left: auto;
-      top: auto;
-    }
+  @media (max-width: 900px) {
+    :root { --cell: clamp(16px, calc((100vw - 76px) / 15), 38px); }
+    .game-layout { grid-template-columns: minmax(0, auto); }
+    main { padding: 16px 8px 32px; }
+    .topbar { padding: 10px 12px; }
   }
 </style>
 </head>
 <body>
 
-  <h1>Scrabble Board — Live View</h1>
-
-  <div class="board-wrapper">
-    <div class="board-frame">
-      <div class="board" id="board"></div>
+  <header class="topbar">
+    <button class="brand" id="brandBtn">Scrabble</button>
+    <span class="room-chip" id="roomChip" hidden>Room <strong id="roomChipCode"></strong></span>
+    <div class="topbar-actions">
+      <button class="secondary icon-btn" id="helpBtn" aria-label="Help" title="Help">?</button>
+      <button class="secondary icon-btn" id="menuBtn" aria-label="Game menu" title="Game menu" hidden>⋯</button>
+      <div class="menu" id="menu" hidden>
+        <button id="copyInviteBtn">Copy invite link</button>
+        <button id="homeBtn">Back to home</button>
+        <button class="danger" id="endGameBtn">End game</button>
+      </div>
     </div>
-    <div class="sidebar-panel">
-      <div class="rack-label">Players</div>
-      <div id="players-list"></div>
-      <div class="rack-label" style="margin-top:12px">Pending Plays</div>
-      <div id="pending-list"></div>
-      <div class="rack-label collapsible" id="activity-toggle" style="margin-top:12px">Activity <span id="activity-arrow">▾</span></div>
-      <div id="activity-log"></div>
+  </header>
+
+  <div class="wake-banner" id="wakeBanner" hidden>Waking up the server. This can take about a minute…</div>
+
+  <main>
+    <section id="home-screen" class="narrow" hidden>
+      <div class="hero">
+        <div class="hero-tiles" id="heroTiles"></div>
+        <h1>Play with friends</h1>
+        <div class="hint">Start a game and share the code, or join one with a code from a friend.</div>
+      </div>
+      <div class="panel">
+        <div class="field">
+          <label class="label" for="nameInput">Your name</label>
+          <input type="text" id="nameInput" placeholder="Your name" maxlength="20" autocomplete="off">
+        </div>
+        <div class="home-actions">
+          <button id="newGameBtn">New Game</button>
+          <div class="divider">or join a game</div>
+          <div class="join-row">
+            <input type="text" id="codeInput" placeholder="CODE" maxlength="4" autocomplete="off" aria-label="Game code">
+            <button class="secondary" id="joinGameBtn">Join Game</button>
+          </div>
+        </div>
+      </div>
+      <div class="message" id="homeMessage"></div>
+      <div class="panel" id="resumePanel" hidden>
+        <div class="label">Your games</div>
+        <div id="resumeList"></div>
+      </div>
+    </section>
+
+    <section id="lobby-screen" class="narrow" hidden>
+      <div class="panel">
+        <div class="label" style="text-align:center">Game code</div>
+        <div class="lobby-code" id="lobbyCode"></div>
+        <div class="label">Players</div>
+        <div id="lobbyPlayers"></div>
+        <div class="lobby-actions">
+          <button class="secondary" id="lobbyInviteBtn">Copy invite link</button>
+          <button id="startGameBtn">Start Game</button>
+        </div>
+      </div>
+      <div class="message" id="lobbyMessage"></div>
+    </section>
+
+    <section id="game-screen" class="game-layout" hidden>
+      <div class="play-column">
+        <div class="board-frame">
+          <div class="board" id="board"></div>
+        </div>
+        <div class="panel rack-panel">
+          <div class="rack-tiles" id="rack"></div>
+          <div class="play-controls">
+            <button id="submitPlayBtn">Submit Play</button>
+            <button class="secondary" id="recallBtn">Recall</button>
+            <button class="secondary" id="exchangeBtn">Exchange</button>
+            <button class="secondary" id="undoBtn">Undo</button>
+          </div>
+          <div class="message" id="playStatus"></div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <div class="panel">
+          <div class="label">Players</div>
+          <div id="players-list"></div>
+        </div>
+        <div class="panel">
+          <div class="label">Pending plays</div>
+          <div id="pending-list"></div>
+        </div>
+        <div class="panel">
+          <div class="label">Tiles in bag</div>
+          <div class="bag-count" id="bagCount"></div>
+        </div>
+        <div class="panel">
+          <button class="activity-toggle" id="activity-toggle">Activity <span id="activity-arrow">▾</span></button>
+          <div id="activity-log"></div>
+        </div>
+        <div class="panel legend">
+          <div class="legend-item"><span class="swatch tw"></span>Triple Word</div>
+          <div class="legend-item"><span class="swatch dw"></span>Double Word</div>
+          <div class="legend-item"><span class="swatch tl"></span>Triple Letter</div>
+          <div class="legend-item"><span class="swatch dl"></span>Double Letter</div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="overlay" id="helpOverlay" hidden>
+    <div class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <h2 id="helpTitle">How to play</h2>
+      <div class="help-section">
+        <h3>Starting a game</h3>
+        <p>Press <strong>New Game</strong> and share the code or invite link. Friends enter the code on the home page. Once at least 2 players are in, anyone can press <strong>Start Game</strong>, and everyone gets 7 tiles.</p>
+      </div>
+      <div class="help-section">
+        <h3>Making a play</h3>
+        <ul>
+          <li>Click a tile in your rack, then click an empty square.</li>
+          <li>Click a placed tile to take it back, or press <strong>Recall</strong> to take them all back.</li>
+          <li>Place tiles in one row or column with no gaps, then press <strong>Submit Play</strong>.</li>
+        </ul>
+      </div>
+      <div class="help-section">
+        <h3>Blank tiles</h3>
+        <p>A <strong>?</strong> tile is a blank. When you place one, choose the letter it stands for. It's worth 0 points and shows a small * on the board.</p>
+      </div>
+      <div class="help-section">
+        <h3>Accepting and challenging</h3>
+        <ul>
+          <li>A submitted play is <strong>pending</strong> and has a dashed outline until it's resolved.</li>
+          <li><strong>Accept:</strong> the play stands and that player draws new tiles.</li>
+          <li><strong>Challenge:</strong> the word is rejected and the tiles go back to that player's rack.</li>
+          <li>If the next player submits a play, earlier pending plays are accepted automatically.</li>
+          <li>The game doesn't check words. Agree on a dictionary and decide together.</li>
+        </ul>
+      </div>
+      <div class="help-section">
+        <h3>Other controls</h3>
+        <ul>
+          <li><strong>Exchange:</strong> swap tiles with the bag instead of playing.</li>
+          <li><strong>Undo:</strong> take back your own pending play.</li>
+          <li><strong>⋯ menu:</strong> copy the invite link, go back home, or end the game for everyone.</li>
+        </ul>
+      </div>
+      <div class="help-section">
+        <h3>Keep in mind</h3>
+        <p>The game doesn't track turns or scores, so keep those yourselves. It remembers you in this browser only, so stick to the same device for each game.</p>
+      </div>
+      <div class="dialog-buttons">
+        <button id="helpCloseBtn">Got it</button>
+      </div>
     </div>
   </div>
 
-  <div class="legend">
-    <div class="legend-item"><span class="swatch tw"></span>Triple Word</div>
-    <div class="legend-item"><span class="swatch dw"></span>Double Word</div>
-    <div class="legend-item"><span class="swatch tl"></span>Triple Letter</div>
-    <div class="legend-item"><span class="swatch dl"></span>Double Letter</div>
-  </div>
-
-  <div class="rack-panel" id="identity-panel">
-    <div class="rack-label">Who are you?</div>
-    <div id="identity-picker"></div>
-    <div class="controls" style="margin-top:8px">
-      <input type="text" id="joinNameInput" placeholder="Your name" maxlength="20">
-      <button id="joinBtn">Join as new player</button>
+  <div class="overlay" id="dialogOverlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+      <h2 id="dialogTitle"></h2>
+      <div class="dialog-body" id="dialogBody"></div>
+      <div class="dialog-buttons" id="dialogButtons"></div>
     </div>
-    <div class="controls" style="margin-top:8px">
-      <button class="secondary" id="restartBtn">Restart game</button>
-    </div>
-  </div>
-
-  <div class="rack-panel">
-    <div class="rack-label">Game Controls</div>
-    <div class="controls">
-      <button id="startGameBtn">Start Game</button>
-      <button class="secondary" id="endGameBtn">End Game</button>
-    </div>
-  </div>
-
-  <div class="rack-panel">
-    <div class="rack-label">Your Rack</div>
-    <div class="rack-tiles" id="rack"></div>
-    <div class="controls">
-      <button id="submitPlayBtn">Submit Play</button>
-    </div>
-    <div class="hint">Gold-outlined tiles are confirmed plays from Discord (read-only, auto-refreshing). Click a rack tile then an empty square to place your word, then hit Submit Play.</div>
-    <div class="hint" id="playStatus"></div>
   </div>
 
 <script>
@@ -551,76 +820,294 @@
   const LABELS = { tw: 'TW', dw: 'DW', tl: 'TL', dl: 'DL' };
   const premiumMap = buildPremiumMap();
 
-  // API base — change this if Flask is running somewhere other than
-  // your own machine on the default port.
-  const API_BASE = "https://scrabble-bot.onrender.com";
+  // Opening the page locally talks to a local Flask server.
+  const IS_LOCAL = ['localhost', '127.0.0.1', ''].includes(location.hostname);
+  const API_BASE = IS_LOCAL ? "http://127.0.0.1:5000" : "https://scrabble-bot.onrender.com";
   const POLL_INTERVAL_MS = 4000;
+  const WAKE_NOTICE_MS = 3000;
 
-  // --- State, split into two layers ---
-  // confirmedBoard: "r,c" -> letter. Comes from the Flask API — this is
-  // the REAL, shared game state written by Discord plays/challenges.
-  // Read-only here: clicking these tiles does nothing.
-  let confirmedBoard = {};
-
-  // localBoard: "r,c" -> letter. Purely a local sandbox for trying out
-  // placements with the rack below — never sent anywhere, never
-  // overwritten by fetches. Cleared with "Clear Board".
-  let localBoard = {};
-
-  // rack: array of letters currently in hand (local sandbox only).
-  let rack = ["S", "C", "R", "B", "L", "N", "?"];
-
-  // Index into `rack` of the currently-selected tile, or null.
-  let selectedRackIndex = null;
-
-  // a pending board layer for tiles that have been submitted but not yet confirmed by the server. This is used to prevent tiles from being returned to the rack if a poll happens mid-placement.
-  let pendingBoard = {};
-  let pendingBlanks = {}; // "r,c" -> true for any blanks placed in a pending play, so they can be displayed as the chosen letter instead of "?" until the play is confirmed or rejected.
-  let confirmedBlanks = {}; // "r,c" -> true for any blanks that have been confirmed by the server, so they can be displayed as the chosen letter instead of "?" until the play is confirmed or rejected.
-  let blankDisplay = {}; // "r,c" -> letter for any blanks placed locally, so they can be displayed as the chosen letter instead of "?" until the play is submitted.
-
-  const boardEl = document.getElementById('board');
-  const rackEl = document.getElementById('rack');
-
+  const SESSION_PREFIX = "scrabble_session_";
   const ACTIVITY_COLLAPSED_KEY = "scrabble_activity_collapsed";
 
-  function setActivityCollapsed(collapsed) {
-    const logEl = document.getElementById('activity-log');
-    const arrowEl = document.getElementById('activity-arrow');
-    logEl.classList.toggle('collapsed', collapsed);
-    arrowEl.textContent = collapsed ? '▸' : '▾';
-    localStorage.setItem(ACTIVITY_COLLAPSED_KEY, collapsed ? '1' : '0');
+  // --- State ---
+  // currentCode: the room shown on screen, or null on the home page.
+  let currentCode = null;
+  let gameState = null;
+
+  // confirmedBoard and pendingBoard: "r,c" -> letter, from the server.
+  let confirmedBoard = {};
+  let confirmedBlanks = {};
+  let pendingBoard = {};
+  let pendingBlanks = {};
+
+  // localBoard: "r,c" -> rack tile, placed here but not submitted yet.
+  // blankDisplay: "r,c" -> the letter chosen for a locally placed blank.
+  let localBoard = {};
+  let blankDisplay = {};
+
+  // rack: tiles still in hand, with locally placed tiles removed.
+  let rack = [];
+  let selectedRackIndex = null;
+
+  const $ = (id) => document.getElementById(id);
+  const boardEl = $('board');
+  const rackEl = $('rack');
+
+  // Player names come from other people, so text always goes through
+  // textContent here, never innerHTML.
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
 
-  document.getElementById('activity-toggle').addEventListener('click', () => {
-    const isCollapsed = document.getElementById('activity-log').classList.contains('collapsed');
-    setActivityCollapsed(!isCollapsed);
-  });
+  // --- API ---
 
-  // Restore whatever state the user last left it in.
-  setActivityCollapsed(localStorage.getItem(ACTIVITY_COLLAPSED_KEY) === '1');
-
-  async function fetchConfirmedBoard() {
-    try {
-      const res = await fetch(`${API_BASE}/board`);
-      if (!res.ok) throw new Error(`API returned ${res.status}`);
-      const data = await res.json();
-      confirmedBoard = data.board || {};
-      confirmedBlanks = data.board_blanks || {};
-      renderBoard();
-    } catch (err) {
-      // Quietly leave the last-known board in place if the API is
-      // unreachable (e.g. Flask isn't running right now).
-      console.warn("Could not fetch board from API:", err.message);
+  class ServerError extends Error {
+    constructor(message, status) {
+      super(message);
+      this.status = status;
     }
   }
 
+  function setWaking(waking) {
+    $('wakeBanner').hidden = !waking;
+  }
+
+  // Sends a POST when `body` is given, otherwise a GET. Render's free tier
+  // sleeps when idle, so slow or failed requests show the wake-up banner.
+  async function api(path, body) {
+    const session = currentCode ? getSession(currentCode) : null;
+    const headers = {};
+    if (session) headers['X-Player-Token'] = session.token;
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+    const wakeTimer = setTimeout(() => setWaking(true), WAKE_NOTICE_MS);
+    try {
+      let res, data;
+      try {
+        res = await fetch(`${API_BASE}${path}`, {
+          method: body === undefined ? 'GET' : 'POST',
+          headers,
+          cache: 'no-store',
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        data = await res.json();
+      } catch (err) {
+        setWaking(true);
+        throw new ServerError("Couldn't reach the server. It may still be waking up, so try again in a moment.", 0);
+      }
+      setWaking(false);
+      if (!res.ok) throw new ServerError(data.error || 'Something went wrong.', res.status);
+      return data;
+    } finally {
+      clearTimeout(wakeTimer);
+    }
+  }
+
+  // --- Sessions ---
+
+  function getSession(code) {
+    const raw = localStorage.getItem(SESSION_PREFIX + code);
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  function saveSession(code, session) {
+    localStorage.setItem(SESSION_PREFIX + code, JSON.stringify(session));
+  }
+
+  function removeSession(code) {
+    localStorage.removeItem(SESSION_PREFIX + code);
+  }
+
+  function savedGames() {
+    return Object.keys(localStorage)
+      .filter(key => key.startsWith(SESSION_PREFIX))
+      .map(key => ({ code: key.slice(SESSION_PREFIX.length), ...JSON.parse(localStorage.getItem(key)) }));
+  }
+
+  // --- Screens ---
+
+  function showScreen(name) {
+    ['home', 'lobby', 'game'].forEach(screen => {
+      $(`${screen}-screen`).hidden = screen !== name;
+    });
+    const inRoom = name !== 'home';
+    $('roomChip').hidden = !inRoom;
+    $('menuBtn').hidden = !inRoom;
+    $('endGameBtn').hidden = name !== 'game';
+    if (!inRoom) $('menu').hidden = true;
+  }
+
+  function resetRoom() {
+    currentCode = null;
+    gameState = null;
+    confirmedBoard = {};
+    confirmedBlanks = {};
+    pendingBoard = {};
+    pendingBlanks = {};
+    localBoard = {};
+    blankDisplay = {};
+    rack = [];
+    selectedRackIndex = null;
+    $('playStatus').textContent = '';
+    $('lobbyMessage').textContent = '';
+  }
+
+  function showHome(message = '', code = '') {
+    resetRoom();
+    showScreen('home');
+    $('homeMessage').textContent = message;
+    $('codeInput').value = code;
+    renderResumeList();
+    (code || !$('nameInput').value ? $('nameInput') : $('codeInput')).focus();
+  }
+
+  function goTo(code) {
+    const target = code ? `#/${code}` : '#/';
+    if (location.hash === target) route();
+    else location.hash = target;
+  }
+
+  function route() {
+    const match = location.hash.match(/^#\/([A-Za-z]+)$/);
+    const code = match ? match[1].toUpperCase() : null;
+
+    if (!code) {
+      showHome();
+    } else if (!getSession(code)) {
+      showHome(`Enter your name to join game ${code}.`, code);
+    } else {
+      resetRoom();
+      currentCode = code;
+      $('roomChipCode').textContent = code;
+      $('lobbyCode').textContent = code;
+      pollRoom();
+    }
+  }
+
+  async function pollRoom() {
+    const code = currentCode;
+    if (!code) return;
+    try {
+      const data = await api(`/games/${code}`);
+      if (code === currentCode) applyState(data);
+    } catch (err) {
+      if (code !== currentCode) return;
+      if (err.status === 404) {
+        removeSession(code);
+        goToHomeWithMessage(`Game ${code} has ended.`);
+      } else if (err.status) {
+        console.warn("Could not load game:", err.message);
+      }
+    }
+  }
+
+  function goToHomeWithMessage(message) {
+    history.replaceState(null, '', '#/');
+    showHome(message);
+  }
+
+  function applyState(data) {
+    if (!data.me) {
+      removeSession(data.code);
+      goToHomeWithMessage(`You're no longer in game ${data.code}.`);
+      return;
+    }
+
+    gameState = data;
+    confirmedBoard = data.board;
+    confirmedBlanks = data.board_blanks;
+
+    const newPending = {};
+    const newPendingBlanks = {};
+    data.pending.forEach(play => {
+      play.positions.forEach(([r, c, letter], i) => {
+        const key = `${r},${c}`;
+        newPending[key] = letter;
+        if (play.blanks.includes(i)) newPendingBlanks[key] = true;
+      });
+    });
+    pendingBoard = newPending;
+    pendingBlanks = newPendingBlanks;
+
+    if (!data.started) {
+      showScreen('lobby');
+      renderLobby();
+      return;
+    }
+
+    // Someone else may have played onto a square we were using. Those
+    // tiles go back to the rack.
+    Object.keys(localBoard).forEach(key => {
+      if (confirmedBoard[key] || pendingBoard[key]) {
+        delete localBoard[key];
+        delete blankDisplay[key];
+      }
+    });
+
+    // Exclude letters already placed locally, so a poll mid-placement
+    // doesn't "return" them to the rack.
+    const serverRack = data.rack.slice();
+    Object.values(localBoard).forEach(letter => {
+      const idx = serverRack.indexOf(letter);
+      if (idx !== -1) serverRack.splice(idx, 1);
+    });
+    if (serverRack.join('') !== rack.join('')) selectedRackIndex = null;
+    rack = serverRack;
+
+    showScreen('game');
+    renderGame();
+  }
+
+  // --- Rendering ---
+
+  function renderGame() {
+    renderBoard();
+    renderRack();
+    renderPlayers($('players-list'));
+    renderPendingList();
+    renderActivity();
+    renderControls();
+    $('bagCount').textContent = gameState.bag_remaining;
+  }
+
+  function renderPlayers(listEl) {
+    listEl.replaceChildren(...gameState.players.map(p => {
+      const isMe = p.player_id === gameState.me;
+      const row = el('div', 'player-row' + (isMe ? ' is-you' : ''));
+      row.append(el('span', '', p.name + (isMe ? ' (you)' : '')));
+      return row;
+    }));
+  }
+
+  function renderLobby() {
+    renderPlayers($('lobbyPlayers'));
+    const canStart = gameState.players.length >= 2;
+    $('startGameBtn').disabled = !canStart;
+    if (!$('lobbyMessage').dataset.error) {
+      $('lobbyMessage').textContent = canStart ? '' : 'Waiting for at least one more player…';
+    }
+  }
+
+  function makeTile(className, letter, points, isBlank) {
+    const tile = el('div', `tile ${className}`, letter);
+    tile.append(el('span', 'points', points));
+    if (isBlank) {
+      const marker = el('span', 'blank-marker', '*');
+      marker.title = 'Blank tile (0 points)';
+      tile.append(marker);
+    }
+    return tile;
+  }
+
   function renderBoard() {
-    boardEl.innerHTML = '';
+    const cells = [];
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const key = `${r},${c}`;
-        const cell = document.createElement('div');
+        const cell = el('div');
         const type = premiumMap[key];
 
         cell.className = 'cell' + (type ? ` ${type}` : '');
@@ -632,438 +1119,230 @@
         const pendingLetter = pendingBoard[key];
         const localLetter = localBoard[key];
 
-        function addBonusBadge(tileEl) {
-          if (!type) return;
-          const badge = document.createElement('span');
-          badge.className = `bonus-badge ${type}`;
-          badge.textContent = type === 'center' ? '★' : LABELS[type];
-          badge.title = {
-            tw: 'Triple Word Score',
-            dw: 'Double Word Score',
-            tl: 'Triple Letter Score',
-            dl: 'Double Letter Score',
-            center: 'Center (Double Word Score)',
-          }[type];
-          tileEl.appendChild(badge);
-        }
-
         if (confirmedLetter) {
-          // Server-confirmed tile: read-only, slightly different styling
-          // so it's visually clear this one didn't come from your clicks.
           const isBlank = !!confirmedBlanks[key];
-          const tile = document.createElement('div');
-          tile.className = 'tile confirmed';
-          tile.textContent = confirmedLetter;
-          const points = document.createElement('span');
-          points.className = 'points';
-          points.textContent = isBlank ? '0' : (LETTER_POINTS[confirmedLetter] ?? '' );
-          tile.appendChild(points);
-          if (isBlank) {
-            const marker = document.createElement('span');
-            marker.className = 'blank-marker';
-            marker.textContent = '*';
-            marker.title = 'Blank tile (0 points)';
-            tile.appendChild(marker);
-          }
-          addBonusBadge(tile);
-          cell.appendChild(tile);
+          cell.append(makeTile('confirmed', confirmedLetter, isBlank ? 0 : LETTER_POINTS[confirmedLetter], isBlank));
         } else if (pendingLetter) {
           const isBlank = !!pendingBlanks[key];
-          const tile = document.createElement('div');
-          tile.className = 'tile pending';
-          tile.textContent = pendingLetter;
-          const points = document.createElement('span');
-          points.className = 'points';
-          points.textContent = isBlank ? '0' : (LETTER_POINTS[pendingLetter] ?? '');
-          tile.appendChild(points);
-          if (isBlank) {
-            const marker = document.createElement('span');
-            marker.className = 'blank-marker';
-            marker.textContent = '*';
-            marker.title = 'Blank tile (0 points)';
-            tile.appendChild(marker);
-          }
-          addBonusBadge(tile);
-          cell.appendChild(tile);
+          cell.append(makeTile('pending', pendingLetter, isBlank ? 0 : LETTER_POINTS[pendingLetter], isBlank));
         } else if (localLetter) {
-          const tile = document.createElement('div');
-          tile.className = 'tile placed';
-          tile.textContent = blankDisplay[key] || localLetter;
-          const points = document.createElement('span');
-          points.className = 'points';
-          points.textContent = LETTER_POINTS[localLetter] ?? '';
-          tile.appendChild(points);
-          addBonusBadge(tile);
+          const isBlank = localLetter === '?';
+          const tile = makeTile('placed', blankDisplay[key] || localLetter, LETTER_POINTS[localLetter], isBlank);
           tile.addEventListener('click', (e) => {
             e.stopPropagation();
             pickUpTile(key);
           });
-          cell.appendChild(tile);
+          cell.append(tile);
         } else {
           cell.classList.add('empty-target');
           cell.addEventListener('click', () => placeTileAt(key));
         }
 
-        boardEl.appendChild(cell);
+        cells.push(cell);
       }
     }
+    boardEl.replaceChildren(...cells);
+  }
+
+  function makeRackTile(letter, selected, onClick) {
+    const tile = el('button', 'rack-tile' + (selected ? ' selected' : ''), letter);
+    tile.type = 'button';
+    tile.append(el('span', 'points', LETTER_POINTS[letter] ?? ''));
+    tile.addEventListener('click', onClick);
+    return tile;
   }
 
   function renderRack() {
-    rackEl.innerHTML = '';
-    rack.forEach((letter, i) => {
-      const tile = document.createElement('div');
-      tile.className = 'rack-tile' + (i === selectedRackIndex ? ' selected' : '');
-      tile.textContent = letter === '?' ? '?' : letter;
-      const points = document.createElement('span');
-      points.className = 'points';
-      points.textContent = LETTER_POINTS[letter] ?? '';
-      tile.appendChild(points);
-      tile.addEventListener('click', () => {
-        selectedRackIndex = (selectedRackIndex === i) ? null : i;
-        renderRack();
-      });
-      rackEl.appendChild(tile);
+    rackEl.replaceChildren(...rack.map((letter, i) => makeRackTile(letter, i === selectedRackIndex, () => {
+      selectedRackIndex = (selectedRackIndex === i) ? null : i;
+      renderRack();
+    })));
+  }
+
+  function hasPendingPlay() {
+    return !!gameState && gameState.pending.some(play => play.player_id === gameState.me);
+  }
+
+  function renderControls() {
+    const placedAny = Object.keys(localBoard).length > 0;
+    $('submitPlayBtn').disabled = !placedAny;
+    $('recallBtn').disabled = !placedAny;
+    $('exchangeBtn').disabled = hasPendingPlay();
+    $('undoBtn').disabled = !hasPendingPlay();
+  }
+
+  function renderPendingList() {
+    const listEl = $('pending-list');
+    if (gameState.pending.length === 0) {
+      listEl.replaceChildren(el('span', 'hint', 'Nothing pending.'));
+      return;
+    }
+
+    listEl.replaceChildren(...gameState.pending.map(play => {
+      const row = el('div', 'pending-row');
+      const summary = el('div', '', `${play.player_name}: `);
+      summary.append(el('strong', '', play.letters));
+      row.append(summary);
+
+      if (play.player_id !== gameState.me) {
+        const actions = el('div', 'pending-actions');
+        const accept = el('button', 'accept-btn', 'Accept');
+        accept.addEventListener('click', () => resolvePlay(play, 'fail'));
+        const challenge = el('button', 'danger', 'Challenge');
+        challenge.addEventListener('click', () => resolvePlay(play, 'success'));
+        actions.append(accept, challenge);
+        row.append(actions);
+      }
+      return row;
+    }));
+  }
+
+  function renderActivity() {
+    const entries = gameState.history;
+    const listEl = $('activity-log');
+    if (entries.length === 0) {
+      listEl.replaceChildren(el('span', 'hint', 'No activity yet.'));
+      return;
+    }
+    // Show most recent first.
+    listEl.replaceChildren(...entries.slice().reverse().map(entry => el('div', 'activity-entry', entry)));
+  }
+
+  function setActivityCollapsed(collapsed) {
+    $('activity-log').hidden = collapsed;
+    $('activity-arrow').textContent = collapsed ? '▸' : '▾';
+    localStorage.setItem(ACTIVITY_COLLAPSED_KEY, collapsed ? '1' : '0');
+  }
+
+  function renderResumeList() {
+    const games = savedGames();
+    $('resumePanel').hidden = games.length === 0;
+    $('resumeList').replaceChildren(...games.map(game => {
+      const row = el('div', 'resume-row');
+      row.append(el('span', '', `${game.code} · ${game.name}`));
+      const open = el('button', 'secondary', 'Open');
+      open.addEventListener('click', () => goTo(game.code));
+      row.append(open);
+      return row;
+    }));
+  }
+
+  // --- Dialogs ---
+
+  // Shows a modal and resolves with the chosen button's value, or null if
+  // it's dismissed. `fillBody` can call `done(value)` to close it early.
+  let closeDialog = null;
+
+  function openDialog(title, fillBody, buttons) {
+    return new Promise(resolve => {
+      const done = (value) => {
+        closeDialog = null;
+        $('dialogOverlay').hidden = true;
+        resolve(value);
+      };
+      closeDialog = () => done(null);
+
+      $('dialogTitle').textContent = title;
+      $('dialogBody').replaceChildren();
+      fillBody($('dialogBody'), done);
+      $('dialogButtons').replaceChildren(...buttons.map(({ label, value, kind }) => {
+        const button = el('button', kind || '', label);
+        button.addEventListener('click', () => done(typeof value === 'function' ? value() : value));
+        return button;
+      }));
+      $('dialogOverlay').hidden = false;
     });
   }
 
-  function placeTileAt(key) {
+  function confirmDialog(title, text, confirmLabel, kind) {
+    return openDialog(title, body => { body.textContent = text; }, [
+      { label: 'Cancel', value: false, kind: 'secondary' },
+      { label: confirmLabel, value: true, kind },
+    ]);
+  }
+
+  function infoDialog(title, lines) {
+    return openDialog(title, body => {
+      lines.forEach(line => body.append(el('div', '', line)));
+    }, [{ label: 'OK', value: true }]);
+  }
+
+  function chooseBlankLetter() {
+    return openDialog('Choose a letter for your blank', (body, done) => {
+      const grid = el('div', 'letter-grid');
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(letter => {
+        const button = el('button', 'secondary', letter);
+        button.addEventListener('click', () => done(letter));
+        grid.append(button);
+      });
+      body.append(grid);
+    }, [{ label: 'Cancel', value: null, kind: 'secondary' }]);
+  }
+
+  function chooseExchangeTiles() {
+    const chosen = new Set();
+    return openDialog('Exchange tiles', body => {
+      body.append(el('div', 'hint', 'Pick the tiles to swap with the bag.'));
+      const tiles = el('div', 'rack-tiles');
+      tiles.style.marginTop = '12px';
+      const draw = () => {
+        tiles.replaceChildren(...rack.map((letter, i) => makeRackTile(letter, chosen.has(i), () => {
+          if (chosen.has(i)) chosen.delete(i);
+          else chosen.add(i);
+          draw();
+        })));
+      };
+      draw();
+      body.append(tiles);
+    }, [
+      { label: 'Cancel', value: null, kind: 'secondary' },
+      { label: 'Exchange', value: () => [...chosen].map(i => rack[i]).join('') },
+    ]);
+  }
+
+  // --- Placing tiles ---
+
+  async function placeTileAt(key) {
     if (selectedRackIndex === null) return;
     if (confirmedBoard[key] || localBoard[key] || pendingBoard[key]) return; // occupied, ignore
 
     const letter = rack[selectedRackIndex];
 
     if (letter === "?") {
-      const chosen = prompt("What does this blank tile represent? (A-Z)");
-      if (!chosen || !/^[A-Za-z]$/.test(chosen)) {
-        alert("Invalid choice. Please enter a letter (A-Z).");
-        return;
-      }
-      blankDisplay[key] = chosen.toUpperCase();
+      const chosen = await chooseBlankLetter();
+      if (!chosen || confirmedBoard[key] || localBoard[key] || pendingBoard[key]) return;
+      blankDisplay[key] = chosen;
     }
 
+    // Look the tile up again, since a poll may have rebuilt the rack while
+    // the blank picker was open.
+    const index = rack.indexOf(letter);
+    if (index === -1) return;
+
     localBoard[key] = letter; // still stores the raw "?" for accounting/submission
-    rack.splice(selectedRackIndex, 1);
+    rack.splice(index, 1);
     selectedRackIndex = null;
 
     renderBoard();
     renderRack();
+    renderControls();
   }
 
   function pickUpTile(key) {
     const letter = localBoard[key];
-    if (!letter) return; // confirmed tiles can't be picked up
+    if (!letter) return;
     delete localBoard[key];
-    delete blankDisplay[key]; // remove any associated blank display
+    delete blankDisplay[key];
     rack.push(letter);
     selectedRackIndex = null;
 
     renderBoard();
     renderRack();
+    renderControls();
   }
 
-  const IDENTITY_KEY = "scrabble_player_id";
-
-  async function restartGame() {
-    if (!confirm("This will end the current game and clear all players. Continue?")) return;
-
-    const typed = prompt('Type "RESTART" to confirm — this cannot be undone.');
-    if (typed !== "RESTART") {
-      if (typed !== null) alert("Didn't match — game was not restarted.");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/newgame`, { method: 'POST' });
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || 'Could not restart the game.');
-        return;
-      }
-
-      clearIdentity();
-      localBoard = {};
-      blankDisplay = {};
-      rack = [];
-      renderBoard();
-      renderRack();
-      pollAll();
-    } catch (err) {
-      alert("Could not reach the API.");
-    }
-  }
-
-  document.getElementById('restartBtn').addEventListener('click', restartGame);
-
-  async function startGame() {
-    try {
-      const res = await fetch(`${API_BASE}/start`, { method: 'POST' });
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || 'Could not start the game.');
-        return;
-      }
-
-      pollAll();
-    } catch (err) {
-      alert("Could not reach the API.");
-    }
-  }
-
-  async function endGame() {
-    if (!confirm("This will end the current game for everyone. Are you sure?")) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/end`, { method: 'POST' });
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || 'Could not end the game.');
-        return;
-      }
-
-      const summaryLines = Object.entries(data.summary || {})
-        .map(([name, rack]) => `${name}: ${rack}`)
-        .join('\n');
-      alert(`Game ended.\n\nFinal racks:\n${summaryLines}`);
-
-      clearIdentity();
-      localBoard = {};
-      blankDisplay = {};
-      rack = [];
-      renderBoard();
-      renderRack();
-      pollAll();
-    } catch (err) {
-      alert("Could not reach the API.");
-    }
-  }
-
-  document.getElementById('startGameBtn').addEventListener('click', startGame);
-  document.getElementById('endGameBtn').addEventListener('click', endGame);
-    
-  async function joinAsNewPlayer() {
-    const input = document.getElementById('joinNameInput');
-    const name = input.value.trim();
-    if (!name) return;
-
-    const newId = (crypto.randomUUID ? crypto.randomUUID() : `web-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-
-    try {
-      const res = await fetch(`${API_BASE}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: newId, name }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || 'Could not join.');
-        return;
-      }
-
-      localStorage.setItem(IDENTITY_KEY, newId);
-      localStorage.setItem(IDENTITY_KEY + "_name", name);
-      input.value = '';
-      loadIdentityPicker();
-    } catch (err) {
-      alert('Could not reach the API.');
-    }
-  }
-
-  document.getElementById('joinBtn').addEventListener('click', joinAsNewPlayer);
-
-  async function loadIdentityPicker() {
-    const savedId = localStorage.getItem(IDENTITY_KEY);
-    const savedName = localStorage.getItem(IDENTITY_KEY + "_name");
-    const panel = document.getElementById("identity-picker");
-
-    if (savedId) {
-      panel.innerHTML = `
-        <span style="color:var(--ui-text)">Playing as <strong>${savedName}</strong></span>
-        <button class="secondary" onclick="clearIdentity()" style="margin-left:10px">Switch player</button>
-      `;
-      fetchMyRack(savedId);
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/players`, { cache: 'no-store' });
-      const data = await res.json();
-      if (!data.players || data.players.length === 0) {
-        panel.innerHTML = `<span class="hint">No players have joined yet — use /join in Discord first.</span>`;
-        return;
-      }
-      const options = data.players
-        .map(p => `<option value="${p.player_id}" data-name="${p.name}">${p.name}</option>`)
-        .join("");
-      panel.innerHTML = `
-        <select id="playerSelect">${options}</select>
-        <button onclick="confirmIdentity()">This is me</button>
-      `;
-    } catch (err) {
-      panel.innerHTML = `<span class="hint">Could not load players from the API.</span>`;
-    }
-  }
-
-  function confirmIdentity() {
-    const select = document.getElementById("playerSelect");
-    const id = select.value;
-    const name = select.selectedOptions[0].dataset.name;
-    localStorage.setItem(IDENTITY_KEY, id);
-    localStorage.setItem(IDENTITY_KEY + "_name", name);
-    loadIdentityPicker();
-  }
-
-  function clearIdentity() {
-    localStorage.removeItem(IDENTITY_KEY);
-    localStorage.removeItem(IDENTITY_KEY + "_name");
-    rack = [];
-    localBoard = {};
-    blankDisplay = {};
-    renderRack();
-    renderBoard();
-    loadIdentityPicker();
-  }
-
-  async function fetchPlayersList() {
-    try {
-      const res = await fetch(`${API_BASE}/players`, { cache: 'no-store' });
-      const data = await res.json();
-      const listEl = document.getElementById('players-list');
-      const myId = localStorage.getItem(IDENTITY_KEY);
-
-      if (!data.players || data.players.length === 0) {
-        listEl.innerHTML = `<span class="hint">No players yet.</span>`;
-        return;
-      }
-
-      listEl.innerHTML = data.players.map(p => `
-        <div class="player-row${p.player_id === myId ? ' is-you' : ''}">
-          <span>${p.name}${p.player_id === myId ? ' (you)' : ''}</span>
-          <span class="player-score">—</span>
-        </div>
-      `).join('');
-    } catch (err) {
-      console.warn("Could not fetch players list:", err.message);
-    }
-  }
-
-  async function fetchActivityLog() {
-    try {
-      const res = await fetch(`${API_BASE}/history`, { cache: 'no-store' });
-      const data = await res.json();
-      const listEl = document.getElementById('activity-log');
-      const entries = data.history || [];
-
-      if (entries.length === 0) {
-        listEl.innerHTML = `<span class="hint">No activity yet.</span>`;
-        return;
-      }
-
-      // Show most recent first.
-      listEl.innerHTML = entries.slice().reverse()
-        .map(entry => `<div class="activity-entry">${entry}</div>`)
-        .join('');
-    } catch (err) {
-      console.warn("Could not fetch activity log:", err.message);
-    }
-  }
-
-  async function fetchMyRack(playerId) {
-    try {
-      const res = await fetch(`${API_BASE}/rack/${playerId}`, { cache: 'no-store' });
-      const data = await res.json();
-      if (data.rack) {
-        let serverRack = data.rack === "(empty)" ? [] : data.rack.split(" ");
-        // Exclude letters already placed locally (pending submission),
-        // so a poll mid-placement doesn't "return" them to the rack.
-        Object.values(localBoard).forEach(letter => {
-          const idx = serverRack.indexOf(letter);
-          if (idx !== -1) serverRack.splice(idx, 1);
-        });
-        rack = serverRack;
-        renderRack();
-      } else if (data.error) {
-        // No active game, or this player isn't part of the current game
-        // anymore (e.g. after /end or /newgame) — reset to the default state.
-        clearIdentity();
-      }
-    } catch (err) {
-      console.warn("Could not fetch rack:", err.message);
-    }
-  }
-
-  async function fetchAllPending() {
-    try {
-      const res = await fetch(`${API_BASE}/pending`, { cache: 'no-store' });
-      const data = await res.json();
-      const newPending = {};
-      const newPendingBlanks = {};
-      (data.pending || []).forEach(play => {
-        play.positions.forEach(([r, c, letter], i) => {
-          const key = `${r},${c}`;
-          newPending[key] = letter;
-          if (play.blanks && play.blanks.includes(i)) {
-            newPendingBlanks[key] = true;
-          }
-        });
-      });
-      pendingBoard = newPending;
-      pendingBlanks = newPendingBlanks;
-      renderBoard();
-      renderPendingList(data.pending || []);
-    } catch (err) {
-      console.warn("Could not fetch pending plays:", err.message);
-    }
-  }
-
-  function renderPendingList(pendingPlays) {
-    const listEl = document.getElementById('pending-list');
-    const myId = localStorage.getItem(IDENTITY_KEY);
-
-    if (pendingPlays.length === 0) {
-      listEl.innerHTML = `<span class="hint">Nothing pending.</span>`;
-      return;
-    }
-
-    listEl.innerHTML = pendingPlays.map(play => {
-      const isMine = play.player_id === myId;
-      return `
-        <div class="pending-row">
-          <span>${play.player_name}: <strong>${play.letters}</strong></span>
-          ${isMine ? '' : `
-            <div style="display:flex; gap:4px;">
-              <button class="accept-btn" onclick="resolvePlay('${play.player_id}', 'fail')">Accept</button>
-              <button class="challenge-btn" onclick="resolvePlay('${play.player_id}', 'success')">Challenge</button>
-            </div>
-          `}
-        </div>
-      `;
-    }).join('');
-  }
-
-  async function resolvePlay(targetPlayerId, result) {
-    const label = result === 'fail' ? 'accept this play (it stands)' : 'challenge this play (tiles get returned)';
-    if (!confirm(`Are you sure you want to ${label}?`)) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/challenge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: targetPlayerId, result }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(`Could not resolve: ${data.error || 'unknown error'}`);
-        return;
-      }
-      pollAll();
-    } catch (err) {
-      alert("Could not reach the API.");
-    }
+  function recallTiles() {
+    Object.keys(localBoard).forEach(pickUpTile);
   }
 
   function buildSubmission() {
@@ -1085,12 +1364,12 @@
     let blanks = [];
     let row, col;
 
-    function resolveCell (key, idx) {
+    function resolveCell(key, idx) {
       if (localBoard[key] === "?") {
         blanks.push(idx);
         return blankDisplay[key] || "?";
       }
-      return localBoard[key] || confirmedBoard[key] || pendingBoard [key];
+      return localBoard[key] || confirmedBoard[key] || pendingBoard[key];
     }
 
     if (direction === 'across') {
@@ -1101,7 +1380,7 @@
       for (let c = col, idx = 0; c <= maxCol; c++, idx++) {
         const key = `${row},${c}`;
         const letter = resolveCell(key, idx);
-        if (!letter) return { error: `Gap in your word at column ${c} — tiles must be contiguous.` };
+        if (!letter) return { error: `There's a gap in your word at column ${c}.` };
         letters += letter;
       }
     } else {
@@ -1111,8 +1390,8 @@
       const maxRow = rowValues[rowValues.length - 1];
       for (let r = row, idx = 0; r <= maxRow; r++, idx++) {
         const key = `${r},${col}`;
-        const letter = resolveCell (key, idx);
-        if (!letter) return { error: `Gap in your word at row ${r} — tiles must be contiguous.` };
+        const letter = resolveCell(key, idx);
+        if (!letter) return { error: `There's a gap in your word at row ${r}.` };
         letters += letter;
       }
     }
@@ -1120,71 +1399,215 @@
     return { row, col, direction, letters, blanks };
   }
 
-  function pollAll() {
-    fetchConfirmedBoard();
-    fetchAllPending();
-    fetchPlayersList();
-    fetchActivityLog();
-    const savedId = localStorage.getItem(IDENTITY_KEY);
-    if (savedId) {
-      fetchMyRack(savedId);
+  // --- Actions ---
+
+  function setPlayStatus(text) {
+    $('playStatus').textContent = text;
+  }
+
+  async function createOrJoin(button, request) {
+    const name = $('nameInput').value.trim();
+    if (!name) {
+      $('homeMessage').textContent = 'Enter your name first.';
+      $('nameInput').focus();
+      return;
+    }
+
+    button.disabled = true;
+    try {
+      const data = await request(name);
+      saveSession(data.code, { player_id: data.player_id, token: data.token, name });
+      goTo(data.code);
+    } catch (err) {
+      $('homeMessage').textContent = err.message;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function newGame() {
+    createOrJoin($('newGameBtn'), name => api('/games', { name }));
+  }
+
+  function joinGame() {
+    const code = $('codeInput').value.trim().toUpperCase();
+    if (!code) {
+      $('homeMessage').textContent = 'Enter a game code first.';
+      $('codeInput').focus();
+      return;
+    }
+    createOrJoin($('joinGameBtn'), name => api(`/games/${encodeURIComponent(code)}/join`, { name }));
+  }
+
+  async function startGame() {
+    try {
+      await api(`/games/${currentCode}/start`, {});
+      pollRoom();
+    } catch (err) {
+      $('lobbyMessage').textContent = err.message;
     }
   }
 
   async function submitPlay() {
-    const statusEl = document.getElementById("playStatus");
-    const playerId = localStorage.getItem(IDENTITY_KEY);
-
-    if (!playerId) {
-      statusEl.textContent = "Pick who you are first.";
-      return;
-    }
-
     const submission = buildSubmission();
     if (submission.error) {
-      statusEl.textContent = submission.error;
+      setPlayStatus(submission.error);
       return;
     }
 
     try {
-      const res = await fetch(`${API_BASE}/play`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player_id: playerId,
-          letters: submission.letters,
-          row: submission.row,
-          col: submission.col,
-          direction: submission.direction,
-          blanks: submission.blanks,
-        }),
+      await api(`/games/${currentCode}/play`, {
+        letters: submission.letters,
+        row: submission.row,
+        col: submission.col,
+        direction: submission.direction,
+        blanks: submission.blanks,
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        statusEl.textContent = `❌ ${data.error || 'Play rejected.'}`;
-        return;
-      }
-
-      statusEl.textContent = `✅ Played ${submission.letters} — pending challenge resolution.`;
+      setPlayStatus(`Played ${submission.letters}. Waiting for it to be accepted or challenged.`);
       localBoard = {};
       blankDisplay = {};
-      renderBoard();
-      pollAll();
+      await pollRoom();
     } catch (err) {
-      statusEl.textContent = "Could not reach the API.";
+      setPlayStatus(err.message);
     }
   }
 
-  document.getElementById("submitPlayBtn").addEventListener("click", submitPlay);
+  async function exchangeTiles() {
+    recallTiles();
+    const letters = await chooseExchangeTiles();
+    if (!letters) return;
 
-  // Initial render, then fetch real data and start polling both
-  // the board and (if an identity is set) the player's own rack.
-  renderBoard();
-  renderRack();
-  pollAll();
-  setInterval(pollAll, POLL_INTERVAL_MS);
-  loadIdentityPicker();
+    try {
+      await api(`/games/${currentCode}/exchange`, { letters });
+      setPlayStatus(`Exchanged ${letters.length} tile${letters.length === 1 ? '' : 's'}.`);
+      await pollRoom();
+    } catch (err) {
+      setPlayStatus(err.message);
+    }
+  }
+
+  async function undoPlay() {
+    try {
+      await api(`/games/${currentCode}/undo`, {});
+      setPlayStatus('Your play was taken back.');
+      await pollRoom();
+    } catch (err) {
+      setPlayStatus(err.message);
+    }
+  }
+
+  async function resolvePlay(play, result) {
+    const accepting = result === 'fail';
+    const confirmed = await confirmDialog(
+      accepting ? `Accept ${play.letters}?` : `Challenge ${play.letters}?`,
+      accepting
+        ? `The play stands and ${play.player_name} draws new tiles.`
+        : `The tiles go back to ${play.player_name}'s rack.`,
+      accepting ? 'Accept' : 'Challenge',
+      accepting ? '' : 'danger',
+    );
+    if (!confirmed) return;
+
+    try {
+      await api(`/games/${currentCode}/challenge`, { player_id: play.player_id, result });
+      await pollRoom();
+    } catch (err) {
+      setPlayStatus(err.message);
+    }
+  }
+
+  async function endGame() {
+    $('menu').hidden = true;
+    const confirmed = await confirmDialog(
+      'End this game?',
+      'This ends the game for everyone and cannot be undone.',
+      'End game',
+      'danger',
+    );
+    if (!confirmed) return;
+
+    const code = currentCode;
+    try {
+      const data = await api(`/games/${code}/end`, {});
+      removeSession(code);
+      history.replaceState(null, '', '#/');
+      showHome();
+      await infoDialog('Game ended', ['Final racks:', ...Object.entries(data.summary).map(([name, tiles]) => `${name}: ${tiles}`)]);
+    } catch (err) {
+      setPlayStatus(err.message);
+    }
+  }
+
+  async function copyInvite(messageEl) {
+    $('menu').hidden = true;
+    const link = `${location.origin}${location.pathname}#/${currentCode}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      messageEl.textContent = 'Invite link copied.';
+    } catch (err) {
+      messageEl.textContent = link;
+    }
+  }
+
+  // --- Wiring ---
+
+  function setHelpOpen(open) {
+    $('helpOverlay').hidden = !open;
+  }
+
+  $('brandBtn').addEventListener('click', () => goTo(null));
+  $('homeBtn').addEventListener('click', () => { $('menu').hidden = true; goTo(null); });
+  $('helpBtn').addEventListener('click', () => setHelpOpen(true));
+  $('helpCloseBtn').addEventListener('click', () => setHelpOpen(false));
+  $('menuBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    $('menu').hidden = !$('menu').hidden;
+  });
+  $('newGameBtn').addEventListener('click', newGame);
+  $('joinGameBtn').addEventListener('click', joinGame);
+  $('codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinGame(); });
+  $('startGameBtn').addEventListener('click', startGame);
+  $('submitPlayBtn').addEventListener('click', submitPlay);
+  $('recallBtn').addEventListener('click', recallTiles);
+  $('exchangeBtn').addEventListener('click', exchangeTiles);
+  $('undoBtn').addEventListener('click', undoPlay);
+  $('endGameBtn').addEventListener('click', endGame);
+  $('copyInviteBtn').addEventListener('click', () => copyInvite(gameState && gameState.started ? $('playStatus') : $('lobbyMessage')));
+  $('lobbyInviteBtn').addEventListener('click', () => copyInvite($('lobbyMessage')));
+  $('activity-toggle').addEventListener('click', () => setActivityCollapsed(!$('activity-log').hidden));
+
+  document.addEventListener('click', () => { $('menu').hidden = true; });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    setHelpOpen(false);
+    if (closeDialog) closeDialog();
+  });
+  [$('helpOverlay'), $('dialogOverlay')].forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target !== overlay) return;
+      if (overlay === $('helpOverlay')) setHelpOpen(false);
+      else if (closeDialog) closeDialog();
+    });
+  });
+
+  'PLAY'.split('').forEach(letter => {
+    const tile = el('div', 'rack-tile', letter);
+    tile.style.cursor = 'default';
+    tile.append(el('span', 'points', LETTER_POINTS[letter]));
+    $('heroTiles').append(tile);
+  });
+
+  window.addEventListener('hashchange', route);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollRoom(); });
+
+  // Poll only while the tab is visible, so a forgotten tab stays quiet.
+  setInterval(() => { if (!document.hidden) pollRoom(); }, POLL_INTERVAL_MS);
+
+  setActivityCollapsed(localStorage.getItem(ACTIVITY_COLLAPSED_KEY) === '1');
+
+  // Nudge the server awake as soon as the page opens.
+  fetch(`${API_BASE}/status`).catch(() => {});
+  route();
 </script>
 
 </body>
