@@ -26,6 +26,14 @@ _file_lock = threading.Lock()
 
 def game_to_dict(game: Game) -> dict:
     return {
+        "settings": game.settings,
+        "turn_started_at": game.turn_started_at,
+        "turn_time_used": game.turn_time_used,
+        "time_banks": game.time_banks,
+        "forfeited": game.forfeited,
+        "skip_next": game.skip_next,
+        "challenge": game.challenge,
+        "winner": game.winner,
         "started": game.started,
         "bag": game.bag,
         "turn_order": game.turn_order,
@@ -51,7 +59,14 @@ def game_to_dict(game: Game) -> dict:
 
 
 def game_from_dict(data: dict) -> Game:
-    game = Game()
+    game = Game(data.get("settings"))
+    game.turn_started_at = data.get("turn_started_at")
+    game.turn_time_used = data.get("turn_time_used", 0)
+    game.time_banks = data.get("time_banks", {})
+    game.forfeited = data.get("forfeited", [])
+    game.skip_next = data.get("skip_next", [])
+    game.challenge = data.get("challenge")
+    game.winner = data.get("winner")
     game.started = data["started"]
     game.bag = data["bag"]
     game.turn_order = data["turn_order"]

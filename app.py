@@ -15,7 +15,7 @@ from functools import wraps
 from flask import Flask, g, request, jsonify
 from flask_cors import CORS
 
-from game import Game, ScrabbleError
+from game import DEFAULT_SETTINGS, Game, ScrabbleError
 from storage import create_game, delete_game, edit_game, load_game
 
 app = Flask(__name__)
@@ -25,6 +25,19 @@ CORS(app)
 CODE_LETTERS = "ABCDEFGHJKMNPQRSTUVWXYZ"
 CODE_LENGTH = 4
 MAX_NAME_LENGTH = 20
+MAX_TIMER_SECONDS = 7 * 24 * 60 * 60
+
+SETTING_LIMITS = {
+    "turn_seconds": (10, MAX_TIMER_SECONDS),
+    "total_seconds": (60, MAX_TIMER_SECONDS),
+    "overtime_penalty": (0, 100),
+    "overtime_limit_minutes": (0, 60),
+}
+SETTING_CHOICES = {
+    "time_mode": ("none", "per_turn", "total"),
+    "challenge_rule": ("free", "lose_turn"),
+    "end_condition": ("classic",),
+}
 
 
 class ApiError(Exception):
@@ -59,6 +72,22 @@ def clean_name(data: dict) -> str:
     return name
 
 
+def clean_settings(data: dict) -> dict:
+    settings = dict(DEFAULT_SETTINGS)
+    for key, value in (data.get("settings") or {}).items():
+        if key in SETTING_CHOICES:
+            if value not in SETTING_CHOICES[key]:
+                raise ApiError(f"Invalid value for {key}.", 400)
+        elif key in SETTING_LIMITS:
+            low, high = SETTING_LIMITS[key]
+            if type(value) is not int or not low <= value <= high:
+                raise ApiError(f"{key} must be between {low} and {high}.", 400)
+        else:
+            raise ApiError(f"Unknown setting: {key}.", 400)
+        settings[key] = value
+    return settings
+
+
 def player_from_token(game: Game):
     token = request.headers.get("X-Player-Token", "")
     for player in game.players.values():
@@ -78,6 +107,7 @@ def room_action(view):
             player = player_from_token(game)
             if player is None:
                 raise ApiError("You are not a player in this game.", 403)
+            game.apply_clock()
             g.game = game
             g.player = player
             return view(code.upper())
@@ -98,8 +128,9 @@ def status():
 
 @app.route("/games", methods=["POST"])
 def new_game():
-    name = clean_name(request.get_json())
-    game = Game()
+    data = request.get_json()
+    name = clean_name(data)
+    game = Game(clean_settings(data))
     credentials = add_new_player(game, name)
     for _ in range(20):
         code = "".join(random.choices(CODE_LETTERS, k=CODE_LENGTH))
@@ -108,17 +139,26 @@ def new_game():
     raise ApiError("Could not create a game. Try again.", 500)
 
 
-@app.route("/games/<code>", methods=["GET"])
-def game_state(code):
-    game = load_game(code.upper())
-    if game is None:
-        raise ApiError("That game doesn't exist.", 404)
-
-    me = player_from_token(game)
-    return jsonify({
-        "code": code.upper(),
+def public_state(code: str, game: Game) -> dict:
+    return {
+        "code": code,
         "started": game.started,
-        "players": [{"player_id": pid, "name": p.name} for pid, p in game.players.items()],
+        "settings": game.settings,
+        "players": [
+            {
+                "player_id": pid,
+                "name": game.players[pid].name,
+                "seconds_left": game.seconds_left(pid),
+                "penalty": game.overtime_points(pid),
+                "forfeited": pid in game.forfeited,
+            }
+            for pid in game.turn_order
+        ],
+        "current_player_id": game.current_player_id(),
+        "turn_seconds_left": game.turn_seconds_left(),
+        "clock_running": game.clock_running(),
+        "challenge": game.challenge,
+        "winner": game.winner,
         "bag_remaining": len(game.bag),
         "board": game.board,
         "board_blanks": game.board_blanks,
@@ -133,8 +173,40 @@ def game_state(code):
             for pid, p in game.pending_plays.items()
         ],
         "history": game.history[-15:],  # last 15 events, most recent last
+    }
+
+
+def require_game(code: str) -> Game:
+    game = load_game(code)
+    if game is None:
+        raise ApiError("That game doesn't exist.", 404)
+    if game.clock_expired():
+        with edit_game(code) as game:
+            if game is None:
+                raise ApiError("That game doesn't exist.", 404)
+            game.apply_clock()
+    return game
+
+
+@app.route("/games/<code>", methods=["GET"])
+def game_state(code):
+    code = code.upper()
+    game = require_game(code)
+    me = player_from_token(game)
+    return jsonify({
+        **public_state(code, game),
         "me": me.player_id if me else None,
         "rack": me.rack if me else None,
+    })
+
+
+@app.route("/games/<code>/spectate", methods=["GET"])
+def spectate(code):
+    code = code.upper()
+    game = require_game(code)
+    return jsonify({
+        **public_state(code, game),
+        "racks": [{"name": p.name, "rack": p.rack} for p in game.players.values()],
     })
 
 
@@ -161,33 +233,36 @@ def play(code):
     data = request.get_json()
     letters, row, col, direction = json_field(data, "letters", "row", "col", "direction")
     blanks = data.get("blanks", [])  # list of 0-based indices into `letters`
-
-    game, player_id = g.game, g.player.player_id
-    before = set(game.pending_plays.keys()) - {player_id}
-    game.play_tiles(player_id, letters, row, col, direction, blanks=blanks)
-
-    # Draw replacements for anyone whose pending play just got auto-confirmed.
-    for other_id in before:
-        if other_id not in game.pending_plays:
-            game.draw_replacements(other_id)
-
+    g.game.play_tiles(g.player.player_id, letters, row, col, direction, blanks=blanks)
     return jsonify({"ok": True, "message": f"Play recorded: {letters}"})
+
+
+@app.route("/games/<code>/pass", methods=["POST"])
+@room_action
+def pass_turn(code):
+    g.game.pass_turn(g.player.player_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/games/<code>/skip", methods=["POST"])
+@room_action
+def skip_turn(code):
+    g.game.skip_turn(g.player.player_id)
+    return jsonify({"ok": True})
 
 
 @app.route("/games/<code>/challenge", methods=["POST"])
 @room_action
 def challenge(code):
-    data = request.get_json()
-    target_id, result = json_field(data, "player_id", "result")  # "success" or "fail"
+    g.game.start_challenge(g.player.player_id)
+    return jsonify({"ok": True})
 
-    if target_id == g.player.player_id:
-        raise ApiError("You can't resolve your own play.", 400)
 
-    if result == "success":
-        g.game.challenge_success(target_id)
-    else:
-        g.game.challenge_fail(target_id)
-        g.game.draw_replacements(target_id)
+@app.route("/games/<code>/challenge/resolve", methods=["POST"])
+@room_action
+def resolve_challenge(code):
+    valid, = json_field(request.get_json(), "valid")
+    g.game.resolve_challenge(g.player.player_id, bool(valid))
     return jsonify({"ok": True})
 
 
