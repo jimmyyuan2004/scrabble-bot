@@ -32,6 +32,7 @@ SETTING_LIMITS = {
     "total_seconds": (60, MAX_TIMER_SECONDS),
     "overtime_penalty": (0, 100),
     "overtime_limit_minutes": (0, 60),
+    "challenge_seconds": (0, 3600),
 }
 SETTING_CHOICES = {
     "time_mode": ("none", "per_turn", "total"),
@@ -157,6 +158,7 @@ def public_state(code: str, game: Game) -> dict:
         "current_player_id": game.current_player_id(),
         "turn_seconds_left": game.turn_seconds_left(),
         "clock_running": game.clock_running(),
+        "challenge_seconds_left": game.challenge_seconds_left(),
         "challenge": game.challenge,
         "winner": game.winner,
         "bag_remaining": len(game.bag),

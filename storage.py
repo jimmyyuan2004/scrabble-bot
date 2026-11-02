@@ -34,6 +34,7 @@ def game_to_dict(game: Game) -> dict:
         "skip_next": game.skip_next,
         "challenge": game.challenge,
         "winner": game.winner,
+        "pending_since": game.pending_since,
         "started": game.started,
         "bag": game.bag,
         "turn_order": game.turn_order,
@@ -67,6 +68,7 @@ def game_from_dict(data: dict) -> Game:
     game.skip_next = data.get("skip_next", [])
     game.challenge = data.get("challenge")
     game.winner = data.get("winner")
+    game.pending_since = data.get("pending_since")
     game.started = data["started"]
     game.bag = data["bag"]
     game.turn_order = data["turn_order"]

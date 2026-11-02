@@ -33,6 +33,7 @@ DEFAULT_SETTINGS = {
     "overtime_penalty": 10,        # total: points lost per minute over
     "overtime_limit_minutes": 10,  # total: forfeit this far over
     "challenge_rule": "free",      # "free" or "lose_turn", for a failed challenge
+    "challenge_seconds": 0,        # time to challenge a play, 0 for until the next turn
     "end_condition": "classic",    # score targets can be added with scoring
 }
 
@@ -112,6 +113,7 @@ class Game:
         # {"player_id": whose play, "challenger_id": who challenged it}
         self.challenge: Optional[dict] = None
         self.winner: Optional[str] = None
+        self.pending_since: Optional[float] = None  # when the pending play was made
 
     # ------------------------------------------------------------------
     # Setup / lifecycle
@@ -292,7 +294,21 @@ class Game:
             return 0
         return math.ceil(-left / 60) * self.settings["overtime_penalty"]
 
+    def challenge_seconds_left(self) -> Optional[float]:
+        """Time left to challenge the pending play, if the game limits it."""
+        limit = self.settings["challenge_seconds"]
+        if not limit or not self.pending_plays or self.challenge is not None:
+            return None
+        return limit - (time.time() - self.pending_since)
+
+    def _challenge_window_closed(self) -> bool:
+        left = self.challenge_seconds_left()
+        return left is not None and left <= 0
+
     def clock_expired(self) -> bool:
+        return self._challenge_window_closed() or self._turn_expired()
+
+    def _turn_expired(self) -> bool:
         current = self.current_player_id()
         if current is None or not self.clock_running():
             return False
@@ -308,6 +324,9 @@ class Game:
         time, so nobody loses a run of turns while everyone is away."""
         if not self.clock_expired():
             return False
+        if self._challenge_window_closed():
+            self.auto_confirm_others(None)
+            return True
         current = self.current_player_id()
         name = self.players[current].name
         self.auto_confirm_others(current)
@@ -386,6 +405,7 @@ class Game:
 
         player.remove_tiles(new_letters)
         self.pending_plays[player_id] = PendingPlay(player_id, letters, positions, new_letters, blanks=blanks)
+        self.pending_since = time.time()
         self.history.append(f"{player.name} played {letters} at ({row},{col}) {direction} (pending).")
         self._advance_turn()
     
@@ -528,7 +548,7 @@ class Game:
             raise ScrabbleError("That player has no pending play to resolve.")
         return pending
     
-    def auto_confirm_others(self, acting_player_id: str) -> List[str]:
+    def auto_confirm_others(self, acting_player_id: Optional[str]) -> List[str]:
         """When `acting_player_id` takes their turn, any pending plays belonging
         to OTHER players are treated as unchallenged and become permanent.
         Returns the list of player_ids that got auto-confirmed.

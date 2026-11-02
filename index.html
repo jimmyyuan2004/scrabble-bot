@@ -744,6 +744,7 @@
   }
   .help-section p, .help-section ul { margin: 0; line-height: 1.55; color: var(--ui-text); }
   .help-section ul { padding-left: 18px; }
+  .help-section a { color: var(--star); }
 
   @media (max-width: 900px) {
     :root { --cell: clamp(16px, calc((100vw - 76px) / 15), 38px); }
@@ -829,6 +830,12 @@
         <div class="setting">
           <div class="label">If a challenge fails</div>
           <div class="segmented" id="challengeChoice"></div>
+        </div>
+
+        <div class="setting">
+          <div class="label">Time to challenge</div>
+          <div class="segmented" id="challengeTimeChoice"></div>
+          <div class="hint" id="challengeTimeHint"></div>
         </div>
 
         <div class="setting">
@@ -941,6 +948,7 @@
           <li><strong>Not a word:</strong> the tiles go back and that player has lost their turn.</li>
           <li><strong>Word is valid:</strong> the play stands. If the game uses "Lose a turn", the challenger misses their next turn.</li>
           <li>If nobody challenges, the play stands when the next player takes their turn, and that player draws new tiles.</li>
+          <li>Some games set a time to challenge, shown under the pending play. When it runs out, the play stands and the new tiles are drawn.</li>
         </ul>
       </div>
       <div class="help-section">
@@ -960,6 +968,10 @@
           <li><strong>Undo:</strong> take back your own pending play and get your turn back.</li>
           <li><strong>⋯ menu:</strong> copy the invite link, go back home, or end the game for everyone.</li>
         </ul>
+      </div>
+      <div class="help-section">
+        <h3>Game settings</h3>
+        <p>You choose the time control and challenge rules when you create a game. For any questions about game settings, see the <a href="https://github.com/jimmyyuan2004/scrabble-bot#settings" target="_blank" rel="noopener">README</a>.</p>
       </div>
       <div class="help-section">
         <h3>Spectating</h3>
@@ -1055,6 +1067,12 @@
     { value: 'free', label: 'No penalty' },
     { value: 'lose_turn', label: 'Lose a turn' },
   ];
+  const CHALLENGE_TIMES = [
+    { value: 0, label: 'Next turn' },
+    { value: 15, label: '15 sec' },
+    { value: 30, label: '30 sec' },
+    { value: 60, label: '1 min' },
+  ];
   const END_CONDITIONS = [
     { value: 'classic', label: 'Classic' },
     { value: 'score', label: 'First to a score', disabled: true },
@@ -1108,10 +1126,13 @@
     minutes: { per_turn: 3, total: 25 },
     custom: { per_turn: false, total: false },
     challengeRule: 'free',
+    challengeSeconds: 0,
   };
 
   // When the clock values in gameState arrived, for counting down locally.
   let clockSyncedAt = 0;
+  // Set once we've asked the server to close an expired challenge window.
+  let challengeWindowPolled = false;
 
   // --- API ---
 
@@ -1276,6 +1297,7 @@
 
     gameState = data;
     clockSyncedAt = Date.now();
+    challengeWindowPolled = false;
     confirmedBoard = data.board;
     confirmedBlanks = data.board_blanks;
 
@@ -1423,6 +1445,16 @@
       clock.classList.toggle('low', left < LOW_TIME_SECONDS);
     });
 
+    const windowEl = document.querySelector('.challenge-window');
+    if (windowEl && gameState.challenge_seconds_left !== null) {
+      const left = Math.max(0, gameState.challenge_seconds_left - (Date.now() - clockSyncedAt) / 1000);
+      windowEl.textContent = `Challenge closes in ${formatClock(left)}`;
+      if (left === 0 && !challengeWindowPolled) {
+        challengeWindowPolled = true;
+        pollRoom();
+      }
+    }
+
     document.title = mine && !gameState.challenge ? 'Your turn · Scrabble' : 'Scrabble';
   }
 
@@ -1439,7 +1471,8 @@
       total: `${describeTime(settings.total_seconds)} each, then -${settings.overtime_penalty} per minute, forfeit at ${settings.overtime_limit_minutes} min over`,
     }[settings.time_mode];
     const challenge = settings.challenge_rule === 'lose_turn' ? 'Failed challenge loses a turn' : 'No penalty for a failed challenge';
-    return `${time}. ${challenge}.`;
+    const window = settings.challenge_seconds ? ` ${settings.challenge_seconds} sec to challenge.` : '';
+    return `${time}. ${challenge}.${window}`;
   }
 
   function renderSpectatorRacks() {
@@ -1566,6 +1599,10 @@
       const summary = el('div', '', `${play.player_name}: `);
       summary.append(el('strong', '', play.letters));
       row.append(summary);
+
+      if (gameState.challenge_seconds_left !== null) {
+        row.append(el('div', 'hint challenge-window'));
+      }
 
       if (gameState.challenge) {
         const challenger = gameState.players.find(p => p.player_id === gameState.challenge.challenger_id);
@@ -1820,6 +1857,13 @@
       setup.challengeRule = value;
       renderSetup();
     });
+    renderChoice('challengeTimeChoice', CHALLENGE_TIMES, setup.challengeSeconds, value => {
+      setup.challengeSeconds = value;
+      renderSetup();
+    });
+    $('challengeTimeHint').textContent = setup.challengeSeconds
+      ? `After ${setup.challengeSeconds} seconds, the play stands and new tiles are drawn. The next turn also ends it.`
+      : 'Players can challenge until the next player takes their turn.';
     renderChoice('endChoice', END_CONDITIONS, 'classic', () => {});
 
     const timed = mode !== 'none';
@@ -1868,7 +1912,12 @@
   }
 
   function readSettings() {
-    const settings = { time_mode: setup.timeMode, challenge_rule: setup.challengeRule, end_condition: 'classic' };
+    const settings = {
+      time_mode: setup.timeMode,
+      challenge_rule: setup.challengeRule,
+      challenge_seconds: setup.challengeSeconds,
+      end_condition: 'classic',
+    };
     if (setup.timeMode === 'per_turn') {
       settings.turn_seconds = Math.round(setup.minutes.per_turn * 60);
     } else if (setup.timeMode === 'total') {

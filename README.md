@@ -70,11 +70,13 @@ Press **?** in the top bar at any time for the full controls.
 | --- | --- |
 | Time control | **No limit**, **Per turn** or **Total time** |
 | If a challenge fails | **No penalty** or **Lose a turn** |
+| Time to challenge | **Next turn** (default), **15 sec**, **30 sec** or **1 min** |
 | Game ends | **Classic** only. **First to a score** is reserved for when scoring is added |
 
 - **Per turn:** running out of time loses that turn.
 - **Total time:** each player has their own clock, which runs only on their turn. Past zero, they lose points per minute or part of a minute (default 10). Going too far over forfeits (default 10 minutes), and the rest play on. The last player left wins.
 - **No limit:** other players can **Skip** someone who is away.
+- **Time to challenge:** once it runs out, the play stands and the player draws new tiles, so they aren't left waiting on a slow turn. The next player taking their turn also ends it early. It runs alongside the next player's clock.
 
 The clock defaults follow WESPA tournament rules: 25 minutes each, 10 points per minute over, and forfeit at 10 minutes over. Scores aren't tracked yet, so penalties are shown next to the player's name for the group to apply.
 
@@ -100,6 +102,8 @@ Requests marked with a token need an `X-Player-Token` header, using the token re
 | POST | `/games/<code>/exchange` | Yes | `letters` | Swap tiles with the bag |
 | POST | `/games/<code>/undo` | Yes | | Take back your pending play and get your turn back |
 | POST | `/games/<code>/end` | Yes | | End and delete the game. Returns the final racks |
+
+`settings` can include `time_mode` (`none`, `per_turn` or `total`), `turn_seconds`, `total_seconds`, `overtime_penalty`, `overtime_limit_minutes`, `challenge_rule` (`free` or `lose_turn`), `challenge_seconds` (0 means until the next turn) and `end_condition` (`classic`).
 
 Rows and columns run 0-14 from the top left. `direction` is `across` or `down`. `blanks` lists 0-based indices into `letters`.
 
